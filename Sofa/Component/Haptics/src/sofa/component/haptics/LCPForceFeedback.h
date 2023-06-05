@@ -72,6 +72,10 @@ public:
     // Enable/disable constraint haptic influence from all frames
     Data< bool > d_localHapticConstraintAllFrames; ///< Flag to enable/disable constraint haptic influence from all frames
 
+    mutable Data< double > forceX; ///
+    mutable Data< double > forceY; ///
+    mutable Data< double > forceZ; ///
+
     void computeForce(SReal x, SReal y, SReal z,
                       SReal u, SReal v, SReal w,
                       SReal q, SReal& fx, SReal& fy, SReal& fz) override;

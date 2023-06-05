@@ -136,6 +136,9 @@ LCPForceFeedback<DataTypes>::LCPForceFeedback()
     , timer_iterations(0)
     , haptic_freq(0.0)
     , num_constraints(0)
+    , d_forceX(initData(&d_forceX, 0., "forceX","mapped force in X direction."))
+    , d_forceY(initData(&d_forceY, 0., "forceY","mapped force in Y direction."))
+    , d_forceZ(initData(&d_forceZ, 0., "forceZ","mapped force in Z direction."))
 {
     this->f_listening.setValue(true);
     mCP[0] = nullptr;
@@ -151,7 +154,6 @@ template <class DataTypes>
 void LCPForceFeedback<DataTypes>::init()
 {
     core::objectmodel::BaseContext* c = this->getContext();
-
     this->ForceFeedback::init();
     if(!c)
     {
@@ -250,79 +252,85 @@ void LCPForceFeedback<DataTypes>::doComputeForce(const VecCoord& state,  VecDeri
         forces[i].clear();
     }
 
-    if(!constraintSolver||!mState)
-        return;
+    // if(!constraintSolver||!mState)
+    //     return;
 
-    const MatrixDeriv& constraints = mConstraints[mCurBufferId];
-    VecCoord &val = mVal[mCurBufferId];
-    sofa::component::constraint::lagrangian::solver::ConstraintProblem* cp = mCP[mCurBufferId];
+    // const MatrixDeriv& constraints = mConstraints[mCurBufferId];
+    // VecCoord &val = mVal[mCurBufferId];
+    // sofa::component::constraint::lagrangian::solver::ConstraintProblem* cp = mCP[mCurBufferId];
 
-    if(!cp)
-    {
-        return;
-    }
+    // if(!cp)
+    // {
+    //     return;
+    // }
 
-    if(!constraints.empty())
-    {
-        VecDeriv dx;
+    // if(!constraints.empty())
+    // {
+    //     VecDeriv dx;
 
-        derivVectors< DataTypes >(val, state, dx, d_derivRotations.getValue());
+    //     derivVectors< DataTypes >(val, state, dx, d_derivRotations.getValue());
 
-        const bool localHapticConstraintAllFrames = d_localHapticConstraintAllFrames.getValue();
+    //     const bool localHapticConstraintAllFrames = d_localHapticConstraintAllFrames.getValue();
 
-        // Modify Dfree
-        MatrixDerivRowConstIterator rowItEnd = constraints.end();
-        num_constraints = constraints.size();
+    //     // Modify Dfree
+    //     MatrixDerivRowConstIterator rowItEnd = constraints.end();
+    //     num_constraints = constraints.size();
 
-        for (MatrixDerivRowConstIterator rowIt = constraints.begin(); rowIt != rowItEnd; ++rowIt)
-        {
-            MatrixDerivColConstIterator colItEnd = rowIt.end();
+    //     for (MatrixDerivRowConstIterator rowIt = constraints.begin(); rowIt != rowItEnd; ++rowIt)
+    //     {
+    //         MatrixDerivColConstIterator colItEnd = rowIt.end();
 
-            for (MatrixDerivColConstIterator colIt = rowIt.begin(); colIt != colItEnd; ++colIt)
-            {
-                cp->getDfree()[rowIt.index()] += computeDot<DataTypes>(colIt.val(), dx[localHapticConstraintAllFrames ? 0 : colIt.index()]);
-            }
-        }
+    //         for (MatrixDerivColConstIterator colIt = rowIt.begin(); colIt != colItEnd; ++colIt)
+    //         {
+    //             cp->getDfree()[rowIt.index()] += computeDot<DataTypes>(colIt.val(), dx[localHapticConstraintAllFrames ? 0 : colIt.index()]);
+    //         }
+    //     }
 
-        s_mtx.lock();
+    //     s_mtx.lock();
 
-        // Solving constraints
-        cp->solveTimed(cp->tolerance * 0.001, d_solverMaxIt.getValue(), solverTimeout.getValue());	// tol, maxIt, timeout
+    //     // Solving constraints
+    //     cp->solveTimed(cp->tolerance * 0.001, d_solverMaxIt.getValue(), solverTimeout.getValue());	// tol, maxIt, timeout
 
-        // Restore Dfree
-        for (MatrixDerivRowConstIterator rowIt = constraints.begin(); rowIt != rowItEnd; ++rowIt)
-        {
-            MatrixDerivColConstIterator colItEnd = rowIt.end();
+    //     // Restore Dfree
+    //     for (MatrixDerivRowConstIterator rowIt = constraints.begin(); rowIt != rowItEnd; ++rowIt)
+    //     {
+    //         MatrixDerivColConstIterator colItEnd = rowIt.end();
 
-            for (MatrixDerivColConstIterator colIt = rowIt.begin(); colIt != colItEnd; ++colIt)
-            {
-                cp->getDfree()[rowIt.index()] -= computeDot<DataTypes>(colIt.val(), dx[localHapticConstraintAllFrames ? 0 : colIt.index()]);
-            }
-        }
+    //         for (MatrixDerivColConstIterator colIt = rowIt.begin(); colIt != colItEnd; ++colIt)
+    //         {
+    //             cp->getDfree()[rowIt.index()] -= computeDot<DataTypes>(colIt.val(), dx[localHapticConstraintAllFrames ? 0 : colIt.index()]);
+    //         }
+    //     }
 
-        s_mtx.unlock();
+    //     s_mtx.unlock();
 
-        VecDeriv tempForces;
-        tempForces.resize(val.size());
+    //     VecDeriv tempForces;
+    //     tempForces.resize(val.size());
 
-        for (MatrixDerivRowConstIterator rowIt = constraints.begin(); rowIt != rowItEnd; ++rowIt)
-        {
-            if (cp->getF()[rowIt.index()] != 0.0)
-            {
-                MatrixDerivColConstIterator colItEnd = rowIt.end();
+    //     for (MatrixDerivRowConstIterator rowIt = constraints.begin(); rowIt != rowItEnd; ++rowIt)
+    //     {
+    //         if (cp->getF()[rowIt.index()] != 0.0)
+    //         {
+    //             MatrixDerivColConstIterator colItEnd = rowIt.end();
 
-                for (MatrixDerivColConstIterator colIt = rowIt.begin(); colIt != colItEnd; ++colIt)
-                {
-                    tempForces[localHapticConstraintAllFrames ? 0 : colIt.index()] += colIt.val() * cp->getF()[rowIt.index()];
-                }
-            }
-        }
+    //             for (MatrixDerivColConstIterator colIt = rowIt.begin(); colIt != colItEnd; ++colIt)
+    //             {
+    //                 tempForces[localHapticConstraintAllFrames ? 0 : colIt.index()] += colIt.val() * cp->getF()[rowIt.index()];
+    //             }
+    //         }
+    //     }
 
-        for(unsigned int i = 0; i < stateSize; ++i)
-        {
-            forces[i] = tempForces[i] * forceCoef.getValue();
-        }
-    }
+    //     for(unsigned int i = 0; i < stateSize; ++i)
+    //     {
+    //         forces[i] = tempForces[i] * forceCoef.getValue(); //forces[i] is a 3-by-1 vector
+    //     }
+        
+    //     d_forceX.setValue(1);
+    // }
+    forces[stateSize-1][0] = d_forceX.getValue() * forceCoef.getValue(); 
+    forces[stateSize-1][1] = d_forceY.getValue() * forceCoef.getValue(); 
+    forces[stateSize-1][2] = d_forceZ.getValue() * forceCoef.getValue(); 
+    //d_forceX.setValue(1);
 }
 
 
