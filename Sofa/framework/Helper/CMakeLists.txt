@@ -237,7 +237,7 @@ endif()
 target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen)
 
 # Add filesytem experimental
-target_link_libraries(${PROJECT_NAME} SYSTEM PUBLIC stdc++fs)
+target_link_libraries(${PROJECT_NAME} PUBLIC stdc++fs)
 
 # Json (header only) needed by AdvancedTimer
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "$<BUILD_INTERFACE:${JSON_INCLUDE_DIR}>")
