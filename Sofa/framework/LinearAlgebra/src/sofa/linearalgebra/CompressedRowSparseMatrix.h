@@ -41,8 +41,9 @@ public:
     typedef TBlock Block;
     typedef matrix_bloc_traits<Block, Matrix::Index> traits;
     typedef typename traits::Real Real;
-    enum { NL = traits::NL };  ///< Number of rows of a block
-    enum { NC = traits::NC };  ///< Number of columns of a block
+
+    static constexpr Index NL = traits::NL;  ///< Number of rows of a block
+    static constexpr Index NC = traits::NC;  ///< Number of columns of a block
 
     typedef Matrix Expr;
     typedef CompressedRowSparseMatrix<Real> matrix_type;
@@ -389,9 +390,12 @@ public:
             for (; j<=(decltype(j))oldRowIndex[i]; ++j)
                 rowBegin[j] = b;
         }
-        b = oldRowBegin[oldRowBegin.size()-1];
-        for (; j<=nRow; ++j)
-            rowBegin[j] = b;
+        if (!oldRowBegin.empty())
+        {
+            b = oldRowBegin.back();
+            for (; j<=nRow; ++j)
+                rowBegin[j] = b;
+        }
     }
 
     /// Make sure all diagonal entries are present even if they are zero
@@ -1821,7 +1825,7 @@ template<> void SOFA_LINEARALGEBRA_API CompressedRowSparseMatrix<type::Mat<3,3,d
 template<> void SOFA_LINEARALGEBRA_API CompressedRowSparseMatrix<type::Mat<3,3,double> >::add(Index row, Index col, const type::Mat3x3f & _M);
 template<> void SOFA_LINEARALGEBRA_API CompressedRowSparseMatrix<type::Mat<3,3,float> >::add(Index row, Index col, const type::Mat3x3d & _M);
 template<> void SOFA_LINEARALGEBRA_API CompressedRowSparseMatrix<type::Mat<3,3,float> >::add(Index row, Index col, const type::Mat3x3f & _M);
-    
+
 #if !defined(SOFA_COMPONENT_LINEARSOLVER_COMPRESSEDROWSPARSEMATRIX_CPP)
 
 extern template class SOFA_LINEARALGEBRA_API CompressedRowSparseMatrix<float>;

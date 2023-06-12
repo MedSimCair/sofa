@@ -90,7 +90,6 @@ set(HEADER_FILES
     ${SRC_ROOT}/system/PipeProcess.h
     ${SRC_ROOT}/system/PluginManager.h
     ${SRC_ROOT}/system/SetDirectory.h
-    ${SRC_ROOT}/system/SofaOStream.h
     ${SRC_ROOT}/system/console.h
     ${SRC_ROOT}/system/console_internal.h
     ${SRC_ROOT}/system/thread/CTime.h
@@ -236,6 +235,17 @@ endif()
 
 # Eigen (header only)
 target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen)
+
+# Link the experimental library if the compiler version is less than gcc-9 or clang-9
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
+		target_link_libraries(${PROJECT_NAME} PUBLIC stdc++fs)
+	endif()
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+		target_link_libraries(${PROJECT_NAME} PUBLIC c++fs)
+	endif()
+endif()
 
 # Json (header only) needed by AdvancedTimer
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "$<BUILD_INTERFACE:${JSON_INCLUDE_DIR}>")

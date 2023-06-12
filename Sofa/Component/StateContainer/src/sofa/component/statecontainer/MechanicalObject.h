@@ -219,6 +219,9 @@ public:
     /// @param offset the offset in the BaseVector where the scalar values will be used. It will be updated to the first scalar value after the ones used by this operation when this method returns
     void copyFromBaseVector(core::VecId dest, const linearalgebra::BaseVector* src, unsigned int &offset) override;
 
+    /// Copy data to a global BaseMatrix from the state stored in a local vector.
+    void copyToBaseMatrix(linearalgebra::BaseMatrix* dest, core::ConstMatrixDerivId src, unsigned int& offset) override;
+
     /// Add data to a global BaseVector from the state stored in a local vector
     /// @param offset the offset in the BaseVector where the scalar values will be used. It will be updated to the first scalar value after the ones used by this operation when this method returns
     void addToBaseVector(linearalgebra::BaseVector* dest, core::ConstVecId src, unsigned int &offset) override;
@@ -371,9 +374,9 @@ protected :
     /// @name Integration-related data
     /// @{
 
-    sofa::type::vector< Data< VecCoord >		* > vectorsCoord;		///< Coordinates DOFs vectors table (static and dynamic allocated)
-    sofa::type::vector< Data< VecDeriv >		* > vectorsDeriv;		///< Derivates DOFs vectors table (static and dynamic allocated)
-    sofa::type::vector< Data< MatrixDeriv >	* > vectorsMatrixDeriv; ///< Constraint vectors table
+    sofa::type::vector< Data< VecCoord >    * > vectorsCoord; ///< Coordinates DOFs vectors table (static and dynamic allocated)
+    sofa::type::vector< Data< VecDeriv >    * > vectorsDeriv; ///< Derivates DOFs vectors table (static and dynamic allocated)
+    sofa::type::vector< Data< MatrixDeriv > * > vectorsMatrixDeriv; ///< Constraint vectors table
 
     /**
      * @brief Inserts VecCoord DOF coordinates vector at index in the vectorsCoord container.
@@ -392,6 +395,45 @@ protected :
 
 
     /// @}
+
+    /// Generic implementation of the method vAvail
+    template<core::VecType vtype>
+    void vAvailImpl(
+        core::TVecId<vtype, core::V_WRITE>& v,
+        sofa::type::vector< Data< core::StateVecType_t<DataTypes, vtype> >* >& dataContainer);
+
+    /// Generic implementation of the method vAlloc
+    template<core::VecType vtype>
+    void vAllocImpl(core::TVecId<vtype, core::V_WRITE> v, const core::VecIdProperties& properties);
+
+    /// Generic implementation of the method vRealloc
+    template<core::VecType vtype>
+    void vReallocImpl(core::TVecId<vtype, core::V_WRITE> v, const core::VecIdProperties& properties);
+
+    /// Generic implementation of the method vFree
+    template<core::VecType vtype>
+    void vFreeImpl(core::TVecId<vtype, core::V_WRITE> v);
+
+    /// Generic implementation of the method vInit
+    template<core::VecType vtype>
+    void vInitImpl(const core::ExecParams* params,
+                   core::TVecId<vtype, core::V_WRITE> vId,
+                   core::TVecId<vtype, core::V_READ> vSrcId);
+
+    /// Shortcut to get a write-only accessor corresponding to the provided VecType from a VecId
+    template<core::VecType vtype>
+    helper::WriteOnlyAccessor<core::objectmodel::Data<core::StateVecType_t<DataTypes, vtype> > >
+        getWriteOnlyAccessor(core::VecId v);
+
+    /// Shortcut to get a write accessor corresponding to the provided VecType from a VecId
+    template<core::VecType vtype>
+    helper::WriteAccessor<core::objectmodel::Data<core::StateVecType_t<DataTypes, vtype> > >
+        getWriteAccessor(core::VecId v);
+
+    /// Shortcut to get a read accessor corresponding to the provided VecType from a VecId
+    template<core::VecType vtype>
+    helper::ReadAccessor<core::objectmodel::Data<core::StateVecType_t<DataTypes, vtype> > >
+        getReadAccessor(core::ConstVecId v);
 
     /**
     * @brief Internal function : Draw indices in 3d coordinates.

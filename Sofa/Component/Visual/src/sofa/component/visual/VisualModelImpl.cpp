@@ -21,21 +21,21 @@
 ******************************************************************************/
 #include <sofa/component/visual/VisualModelImpl.h>
 
+#include <sofa/type/Quat.h>
+#include <sofa/type/vector.h>
+#include <sofa/type/Material.h>
+#include <sofa/helper/rmath.h>
+#include <sofa/helper/accessor.h>
+#include <sofa/helper/ScopedAdvancedTimer.h>
+#include <sofa/helper/io/Mesh.h>
+#include <sofa/helper/system/FileRepository.h>
 #include <sofa/core/topology/TopologyData.inl>
-#include <sofa/component/topology/container/grid/SparseGridTopology.h>
-
 #include <sofa/core/visual/VisualParams.h>
 #include <sofa/core/behavior/BaseMechanicalState.h>
 #include <sofa/core/topology/TopologyChange.h>
 #include <sofa/core/ObjectFactory.h>
-#include <sofa/type/Quat.h>
-#include <sofa/type/vector.h>
-#include <sofa/helper/io/Mesh.h>
-#include <sofa/helper/rmath.h>
-#include <sofa/helper/accessor.h>
-#include <sofa/helper/system/FileRepository.h>
-#include <sofa/type/Material.h>
-#include <sofa/helper/AdvancedTimer.h>
+
+#include <sofa/component/topology/container/grid/SparseGridTopology.h>
 
 #include <sstream>
 #include <map>
@@ -50,72 +50,6 @@ using namespace sofa::type;
 using namespace sofa::defaulttype;
 using namespace sofa::core::topology;
 using type::vector;
-
-Vec3State::Vec3State()
-    : m_positions(initData(&m_positions, "position", "Vertices coordinates"))
-    , m_restPositions(initData(&m_restPositions, "restPosition", "Vertices rest coordinates"))
-    , m_vnormals (initData (&m_vnormals, "normal", "Normals of the model"))
-    , modified(false)
-{
-    m_positions.setGroup("Vector");
-    m_restPositions.setGroup("Vector");
-    m_vnormals.setGroup("Vector");
-}
-
-void Vec3State::resize(Size vsize)
-{
-    helper::WriteOnlyAccessor< Data<VecCoord > > positions = m_positions;
-    if( positions.size() == vsize ) return;
-    helper::WriteOnlyAccessor< Data<VecCoord > > restPositions = m_restPositions;
-    helper::WriteOnlyAccessor< Data<VecDeriv > > normals = m_vnormals;
-
-    positions.resize(vsize);
-    restPositions.resize(vsize); // todo allocate restpos only when it is necessary
-    normals.resize(vsize);
-
-    modified = true;
-}
-
-Size Vec3State::getSize() const { return Size(m_positions.getValue().size()); }
-
-Data<Vec3State::VecCoord>* Vec3State::write(     core::VecCoordId  v )
-{
-    modified = true;
-
-    if( v == core::VecCoordId::position() )
-        return &m_positions;
-    if( v == core::VecCoordId::restPosition() )
-        return &m_restPositions;
-
-    return nullptr;
-}
-
-const Data<Vec3State::VecCoord>* Vec3State::read(core::ConstVecCoordId  v )  const
-{
-    if( v == core::VecCoordId::position() )
-        return &m_positions;
-    if( v == core::VecCoordId::restPosition() )
-        return &m_restPositions;
-
-    return nullptr;
-}
-
-Data<Vec3State::VecDeriv>*	Vec3State::write(core::VecDerivId v )
-{
-    if( v == core::VecDerivId::normal() )
-        return &m_vnormals;
-
-    return nullptr;
-}
-
-const Data<Vec3State::VecDeriv>* Vec3State::read(core::ConstVecDerivId v ) const
-{
-    if( v == core::VecDerivId::normal() )
-        return &m_vnormals;
-
-    return nullptr;
-}
-
 
 void VisualModelImpl::parse(core::objectmodel::BaseObjectDescription* arg)
 {
@@ -1020,7 +954,7 @@ void VisualModelImpl::initFromTopology()
 void VisualModelImpl::computeNormals()
 {
     const VecCoord& vertices = getVertices();
-    //const VecCoord& vertices = m_vertices2.getValue();
+
     if (vertices.empty() || (!m_updateNormals.getValue() && (m_vnormals.getValue()).size() == (vertices).size())) return;
 
     const VecVisualTriangle& triangles = m_triangles.getValue();
@@ -1029,38 +963,34 @@ void VisualModelImpl::computeNormals()
 
     if (vertNormIdx.empty())
     {
-        std::size_t nbn = vertices.size();
-
-        VecDeriv& normals = *(m_vnormals.beginEdit());
+        const std::size_t nbn = vertices.size();
+        auto normals = sofa::helper::getWriteOnlyAccessor(m_vnormals);
 
         normals.resize(nbn);
-        for (std::size_t i = 0; i < nbn; i++)
-            normals[i].clear();
+        std::memset(&normals[0], 0, sizeof(normals[0]) * nbn); // bulk reset with zeros
 
-        for (std::size_t i = 0; i < triangles.size(); i++)
+        for (const auto& triangle : triangles)
         {
-            const VisualTriangle& triangle = triangles[i];
             const Coord& v1 = vertices[ triangle[0] ];
             const Coord& v2 = vertices[ triangle[1] ];
             const Coord& v3 = vertices[ triangle[2] ];
-            Coord n = cross(v2-v1, v3-v1);
+            const Coord n = cross(v2-v1, v3-v1);
 
             normals[ triangle[0] ] += n;
             normals[ triangle[1] ] += n;
             normals[ triangle[2] ] += n;
         }
 
-        for (std::size_t i = 0; i < quads.size(); i++)
+        for (const auto& quad : quads)
         {
-            const VisualQuad& quad = quads[i];
             const Coord & v1 = vertices[ quad[0] ];
             const Coord & v2 = vertices[ quad[1] ];
             const Coord & v3 = vertices[ quad[2] ];
             const Coord & v4 = vertices[ quad[3] ];
-            Coord n1 = cross(v2-v1, v4-v1);
-            Coord n2 = cross(v3-v2, v1-v2);
-            Coord n3 = cross(v4-v3, v2-v3);
-            Coord n4 = cross(v1-v4, v3-v4);
+            const Coord n1 = cross(v2-v1, v4-v1);
+            const Coord n2 = cross(v3-v2, v1-v2);
+            const Coord n3 = cross(v4-v3, v2-v3);
+            const Coord n4 = cross(v1-v4, v3-v4);
 
             normals[ quad[0] ] += n1;
             normals[ quad[1] ] += n2;
@@ -1068,49 +998,38 @@ void VisualModelImpl::computeNormals()
             normals[ quad[3] ] += n4;
         }
 
-        for (std::size_t i = 0; i < normals.size(); i++)
-            normals[i].normalize();
-
-        m_vnormals.endEdit();
+        for (auto& normal : normals)
+        {
+            normal.normalize();
+        }
     }
     else
     {
-        vector<Coord> normals;
-        std::size_t nbn = 0;
-        for (std::size_t i = 0; i < vertNormIdx.size(); i++)
-        {
-            if (vertNormIdx[i] >= nbn)
-                nbn = vertNormIdx[i]+1;
-        }
+        const std::size_t nbn = static_cast<std::size_t>(*std::max_element(vertNormIdx.begin(), vertNormIdx.end())) + 1;
+        sofa::type::vector<Coord> normals(nbn); // will call the default ctor, which initializes with zeros
 
-        normals.resize(nbn);
-        for (std::size_t i = 0; i < nbn; i++)
-            normals[i].clear();
-
-        for (std::size_t i = 0; i < triangles.size() ; i++)
+        for (const auto& triangle : triangles)
         {
-            const VisualTriangle& triangle = triangles[i];
             const Coord & v1 = vertices[ triangle[0] ];
             const Coord & v2 = vertices[ triangle[1] ];
             const Coord & v3 = vertices[ triangle[2] ];
-            Coord n = cross(v2-v1, v3-v1);
+            const Coord n = cross(v2-v1, v3-v1);
 
             normals[vertNormIdx[ triangle[0] ]] += n;
             normals[vertNormIdx[ triangle[1] ]] += n;
             normals[vertNormIdx[ triangle[2] ]] += n;
         }
 
-        for (std::size_t i = 0; i < quads.size() ; i++)
+        for (const auto& quad : quads)
         {
-            const VisualQuad& quad = quads[i];
             const Coord & v1 = vertices[ quad[0] ];
             const Coord & v2 = vertices[ quad[1] ];
             const Coord & v3 = vertices[ quad[2] ];
             const Coord & v4 = vertices[ quad[3] ];
-            Coord n1 = cross(v2-v1, v4-v1);
-            Coord n2 = cross(v3-v2, v1-v2);
-            Coord n3 = cross(v4-v3, v2-v3);
-            Coord n4 = cross(v1-v4, v3-v4);
+            const Coord n1 = cross(v2-v1, v4-v1);
+            const Coord n2 = cross(v3-v2, v1-v2);
+            const Coord n3 = cross(v4-v3, v2-v3);
+            const Coord n4 = cross(v1-v4, v3-v4);
 
             normals[vertNormIdx[ quad[0] ]] += n1;
             normals[vertNormIdx[ quad[1] ]] += n2;
@@ -1118,18 +1037,17 @@ void VisualModelImpl::computeNormals()
             normals[vertNormIdx[ quad[3] ]] += n4;
         }
 
-        for (std::size_t i = 0; i < normals.size(); i++)
+        for (auto& normal : normals)
         {
-            normals[i].normalize();
+            normal.normalize();
         }
 
-        VecDeriv& vnormals = *(m_vnormals.beginEdit());
+        auto vnormals = sofa::helper::getWriteOnlyAccessor(m_vnormals);
         vnormals.resize(vertices.size());
         for (std::size_t i = 0; i < vertices.size(); i++)
         {
             vnormals[i] = normals[vertNormIdx[i]];
         }
-        m_vnormals.endEdit();
     }
 }
 
@@ -1398,28 +1316,30 @@ void VisualModelImpl::updateVisual()
             }
         }
 
-        sofa::helper::AdvancedTimer::stepBegin("VisualModelImpl::computePositions");
-        computePositions();
-        sofa::helper::AdvancedTimer::stepEnd("VisualModelImpl::computePositions");
-
-        sofa::helper::AdvancedTimer::stepBegin("VisualModelImpl::updateBuffers");
-        updateBuffers();
-        sofa::helper::AdvancedTimer::stepEnd("VisualModelImpl::updateBuffers");
-
-        sofa::helper::AdvancedTimer::stepBegin("VisualModelImpl::computeNormals");
-        computeNormals();
-        sofa::helper::AdvancedTimer::stepEnd("VisualModelImpl::computeNormals");
-
+        {
+            sofa::helper::ScopedAdvancedTimer t("VisualModelImpl::computePositions");
+            computePositions();
+        }
+        {
+            sofa::helper::ScopedAdvancedTimer t("VisualModelImpl::computeNormals");
+            computeNormals();
+        }
         if (m_updateTangents.getValue())
         {
-            sofa::helper::AdvancedTimer::stepBegin("VisualModelImpl::computeTangents");
+            sofa::helper::ScopedAdvancedTimer t("VisualModelImpl::computeTangents");
             computeTangents();
-            sofa::helper::AdvancedTimer::stepEnd("VisualModelImpl::computeTangents");
         }
-        modified = false;
-
         if (m_vtexcoords.getValue().size() == 0)
+        {
+            sofa::helper::ScopedAdvancedTimer t("VisualModelImpl::computeUVSphereProjection");
             computeUVSphereProjection();
+        }
+        {
+            sofa::helper::ScopedAdvancedTimer t("VisualModelImpl::updateBuffers");
+            updateBuffers();
+        }
+
+        modified = false;
 
     }
 

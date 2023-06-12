@@ -31,6 +31,7 @@
 #include <sofa/helper/OptionsGroup.h>
 
 #include <sofa/helper/ColorMap.h>
+#include <sofa/simulation/ParallelForEach.h>
 
 // corotational tetrahedron from
 // @InProceedings{NPF05,
@@ -59,11 +60,11 @@ public:
     typedef TetrahedronFEMForceField<DataTypes> Main;
     void initPtrData(Main * m)
     {
-        m->_gatherPt.beginEdit()->setNames(1," ");
-        m->_gatherPt.endEdit();
+        auto gatherPt = sofa::helper::getWriteOnlyAccessor(m->_gatherPt);
+        auto gatherBsize = sofa::helper::getWriteOnlyAccessor(m->_gatherBsize);
 
-        m->_gatherBsize.beginEdit()->setNames(1," ");
-        m->_gatherBsize.endEdit();
+        gatherPt.wref().setNames({" "});
+        gatherBsize.wref().setNames({" "});
     }
 };
 
@@ -168,6 +169,9 @@ protected:
     type::fixed_array<Coord, 4> InvalidCoords;
     MaterialStiffness InvalidMaterialStiffness;
     StrainDisplacement InvalidStrainDisplacement;
+
+    std::vector< sofa::type::Vec3 > m_renderedPoints;
+    std::vector< sofa::type::RGBAColor > m_renderedColors;
 
 public:
     // get the volume of the mesh
@@ -275,6 +279,7 @@ public:
 
     void addKToMatrix(sofa::linearalgebra::BaseMatrix *m, SReal kFactor, unsigned int &offset) override;
     void addKToMatrix(const core::MechanicalParams* /*mparams*/, const sofa::core::behavior::MultiMatrixAccessor* /*matrix*/ ) override;
+    void buildStiffnessMatrix(core::behavior::StiffnessMatrix* matrix) override;
 
     void draw(const core::visual::VisualParams* vparams) override;
 
@@ -327,6 +332,20 @@ protected:
 
     void computeVonMisesStress();
     bool isComputeVonMisesStressMethodSet();
+    void computeMinMaxFromYoungsModulus();
+    virtual void drawTrianglesFromTetrahedra(const core::visual::VisualParams* vparams,
+                                     bool showVonMisesStressPerElement,
+                                     bool drawVonMisesStress, const VecCoord& x,
+                                     const VecReal& youngModulus,
+                                     bool heterogeneous, Real minVM, Real maxVM,
+                                     helper::ReadAccessor<Data<type::vector<Real>>> vM);
+    virtual void drawTrianglesFromRangeOfTetrahedra(const simulation::Range<VecElement::const_iterator>& range,
+                                 const core::visual::VisualParams* vparams,
+                                 bool showVonMisesStressPerElement,
+                                 bool drawVonMisesStress, bool showWireFrame, const VecCoord& x,
+                                 const VecReal& youngModulus,
+                                 bool heterogeneous, Real minVM, Real maxVM,
+                                 helper::ReadAccessor<Data<type::vector<Real>>> vM);
     void handleEvent(core::objectmodel::Event *event) override;
 };
 

@@ -80,7 +80,7 @@ if(Sofa.GL_FOUND)
         endif()
     endif()
 else()
-    message(STATUS "Sofa.GL has not been activated, QtViewer/QGLViewer will be disabled.")
+    message(STATUS "Sofa.GUI.Qt: Sofa.GL has not been activated, QtViewer/QGLViewer will be disabled.")
     set(SOFA_GUI_QT_ENABLE_QTVIEWER OFF)
     set(SOFA_GUI_QT_ENABLE_QGLVIEWER OFF)
 endif()
@@ -132,6 +132,7 @@ set(MOC_HEADER_FILES
     ${SRC_ROOT}/QSofaListView.h
     ${SRC_ROOT}/QSofaStatWidget.h
     ${SRC_ROOT}/QTabulationModifyObject.h
+    ${SRC_ROOT}/QtMessageRedirection.h
     ${SRC_ROOT}/QTransformationWidget.h
     ${SRC_ROOT}/RealGUI.h
     ${SRC_ROOT}/SimpleDataWidget.h
@@ -184,6 +185,7 @@ set(SOURCE_FILES
     ${SRC_ROOT}/QSofaListView.cpp
     ${SRC_ROOT}/QSofaStatWidget.cpp
     ${SRC_ROOT}/QTabulationModifyObject.cpp
+    ${SRC_ROOT}/QtMessageRedirection.cpp
     ${SRC_ROOT}/QTransformationWidget.cpp
     ${SRC_ROOT}/RealGUI.cpp
     ${SRC_ROOT}/SimpleDataWidget.cpp
