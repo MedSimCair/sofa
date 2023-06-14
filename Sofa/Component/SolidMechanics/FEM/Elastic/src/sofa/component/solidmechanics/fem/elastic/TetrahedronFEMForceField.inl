@@ -29,7 +29,6 @@
 #include <sofa/linearalgebra/CompressedRowSparseMatrix.h>
 #include <sofa/simulation/AnimateBeginEvent.h>
 #include <sofa/simulation/AnimateEndEvent.h>
-#include <sofa/core/behavior/BaseLocalForceFieldMatrix.h>
 
 namespace sofa::component::solidmechanics::fem::elastic
 {
@@ -38,33 +37,38 @@ using sofa::core::objectmodel::ComponentState ;
 
 template<class DataTypes>
 TetrahedronFEMForceField<DataTypes>::TetrahedronFEMForceField()
-    : m_topology(nullptr)
-    , _indexedElements(nullptr)
-    , needUpdateTopology(false)
-    , m_VonMisesColorMap(nullptr)
-    , _initialPoints(initData(&_initialPoints, "initialPoints", "Initial Position"))
-    , f_method(initData(&f_method,std::string("large"),"method","\"small\", \"large\" (by QR), \"polar\" or \"svd\" displacements"))
-    , _poissonRatio(initData(&_poissonRatio,(Real)0.45,"poissonRatio","FEM Poisson Ratio in Hooke's law [0,0.5["))
-    , _youngModulus(initData(&_youngModulus,"youngModulus","FEM Young's Modulus in Hooke's law"))
-    , _localStiffnessFactor(initData(&_localStiffnessFactor, "localStiffnessFactor","Allow specification of different stiffness per element. If there are N element and M values are specified, the youngModulus factor for element i would be localStiffnessFactor[i*M/N]"))
-    , _updateStiffnessMatrix(initData(&_updateStiffnessMatrix,false,"updateStiffnessMatrix",""))
-    , _assembling(initData(&_assembling,false,"computeGlobalMatrix",""))
-    , _plasticMaxThreshold(initData(&_plasticMaxThreshold,(Real)0.f,"plasticMaxThreshold","Plastic Max Threshold (2-norm of the strain)"))
-    , _plasticYieldThreshold(initData(&_plasticYieldThreshold,(Real)0.0001f,"plasticYieldThreshold","Plastic Yield Threshold (2-norm of the strain)"))
-    , _plasticCreep(initData(&_plasticCreep,(Real)0.9f,"plasticCreep","Plastic Creep Factor * dt [0,1]. Warning this factor depends on dt."))
-    , _gatherPt(initData(&_gatherPt,"gatherPt","number of dof accumulated per threads during the gather operation (Only use in GPU version)"))
-    , _gatherBsize(initData(&_gatherBsize,"gatherBsize","number of dof accumulated per threads during the gather operation (Only use in GPU version)"))
-    , drawHeterogeneousTetra(initData(&drawHeterogeneousTetra,false,"drawHeterogeneousTetra","Draw Heterogeneous Tetra in different color"))
-    , _computeVonMisesStress(initData(&_computeVonMisesStress,0,"computeVonMisesStress","compute and display von Mises stress: 0: no computations, 1: using corotational strain, 2: using full Green strain. Set listening=1"))
-    , _vonMisesPerElement(initData(&_vonMisesPerElement, "vonMisesPerElement", "von Mises Stress per element"))
-    , _vonMisesPerNode(initData(&_vonMisesPerNode, "vonMisesPerNode", "von Mises Stress per node"))
-    , _vonMisesStressColors(initData(&_vonMisesStressColors, "vonMisesStressColors", "Vector of colors describing the VonMises stress"))
-    , _showStressColorMap(initData(&_showStressColorMap, std::string("Blue to Red"),"showStressColorMap", "Color map used to show stress values"))
-    , _showStressAlpha(initData(&_showStressAlpha, 1.0f, "showStressAlpha", "Alpha for vonMises visualisation"))
-    , _showVonMisesStressPerNode(initData(&_showVonMisesStressPerNode,false,"showVonMisesStressPerNode","draw points showing vonMises stress interpolated in nodes"))
-    , _showVonMisesStressPerElement(initData(&_showVonMisesStressPerElement, false, "showVonMisesStressPerElement", "draw triangles showing vonMises stress interpolated in elements"))
-    , _updateStiffness(initData(&_updateStiffness,false,"updateStiffness","udpate structures (precomputed in init) using stiffness parameters in each iteration (set listening=1)"))
-    , l_topology(initLink("topology", "link to the tetrahedron topology container"))
+        : m_topology(nullptr)
+        , _indexedElements(nullptr)
+        , needUpdateTopology(false)
+        , m_VonMisesColorMap(nullptr)
+        , _initialPoints(initData(&_initialPoints, "initialPoints", "Initial Position"))
+        , f_method(initData(&f_method,std::string("large"),"method","\"small\", \"large\" (by QR), \"polar\" or \"svd\" displacements"))
+        , _poissonRatio(initData(&_poissonRatio,(Real)0.45,"poissonRatio","FEM Poisson Ratio in Hooke's law [0,0.5["))
+        , _youngModulus(initData(&_youngModulus,"youngModulus","FEM Young's Modulus in Hooke's law"))
+        , _localStiffnessFactor(initData(&_localStiffnessFactor, "localStiffnessFactor","Allow specification of different stiffness per element. If there are N element and M values are specified, the youngModulus factor for element i would be localStiffnessFactor[i*M/N]"))
+        , _updateStiffnessMatrix(initData(&_updateStiffnessMatrix,false,"updateStiffnessMatrix",""))
+        , _assembling(initData(&_assembling,false,"computeGlobalMatrix",""))
+        , _plasticMaxThreshold(initData(&_plasticMaxThreshold,(Real)0.f,"plasticMaxThreshold","Plastic Max Threshold (2-norm of the strain)"))
+        , _plasticYieldThreshold(initData(&_plasticYieldThreshold,(Real)0.0001f,"plasticYieldThreshold","Plastic Yield Threshold (2-norm of the strain)"))
+        , _plasticCreep(initData(&_plasticCreep,(Real)0.9f,"plasticCreep","Plastic Creep Factor * dt [0,1]. Warning this factor depends on dt."))
+        , _gatherPt(initData(&_gatherPt,"gatherPt","number of dof accumulated per threads during the gather operation (Only use in GPU version)"))
+        , _gatherBsize(initData(&_gatherBsize,"gatherBsize","number of dof accumulated per threads during the gather operation (Only use in GPU version)"))
+        , drawHeterogeneousTetra(initData(&drawHeterogeneousTetra,false,"drawHeterogeneousTetra","Draw Heterogeneous Tetra in different color"))
+        , _computeVonMisesStress(initData(&_computeVonMisesStress,0,"computeVonMisesStress","compute and display von Mises stress: 0: no computations, 1: using corotational strain, 2: using full Green strain. Set listening=1"))
+        , _vonMisesPerElement(initData(&_vonMisesPerElement, "vonMisesPerElement", "von Mises Stress per element"))
+        , _vonMisesPerNode(initData(&_vonMisesPerNode, "vonMisesPerNode", "von Mises Stress per node"))
+        , _vonMisesStressColors(initData(&_vonMisesStressColors, "vonMisesStressColors", "Vector of colors describing the VonMises stress"))
+        , d_showElementGapScale(initData(&d_showElementGapScale, 0.333f, "showElementGapScale", "draw gap between elements (when showWireFrame is disabled) [0,1]: 0: no gap, 1: no element"))
+        , _showStressColorMap(initData(&_showStressColorMap, std::string("Blue to Red"),"showStressColorMap", "Color map used to show stress values"))
+        , _showStressAlpha(initData(&_showStressAlpha, 1.0f, "showStressAlpha", "Alpha for vonMises visualisation"))
+        , _showVonMisesStressPerNode(initData(&_showVonMisesStressPerNode,false,"showVonMisesStressPerNode","draw points showing vonMises stress interpolated in nodes"))
+        , d_showVonMisesStressPerNodeColorMap(initData(&d_showVonMisesStressPerNodeColorMap,false,"showVonMisesStressPerNodeColorMap","draw elements showing vonMises stress interpolated in nodes"))
+        , _showVonMisesStressPerElement(initData(&_showVonMisesStressPerElement, false, "showVonMisesStressPerElement", "draw triangles showing vonMises stress interpolated in elements"))
+        , _updateStiffness(initData(&_updateStiffness,false,"updateStiffness","udpate structures (precomputed in init) using stiffness parameters in each iteration (set listening=1)"))
+        , d_renderPoints1(initData(&d_renderPoints1,"renderPoints1","renderd points in von mise stress visualization"))
+        , d_renderPoints2(initData(&d_renderPoints2,"renderPoints2","renderd points in von mise stress visualization"))
+        , d_drawShift(initData(&d_drawShift, type::Vec3f(0.0,0.0,0.0), "drawShift", "Draw shift."))
+        , l_topology(initLink("topology", "link to the tetrahedron topology container"))
 {
     _poissonRatio.setRequired(true);
     _youngModulus.setRequired(true);
@@ -297,7 +301,7 @@ void TetrahedronFEMForceField<DataTypes>::computeMaterialStiffness(Index i, Inde
     materialsStiffnesses[i][0][0] = materialsStiffnesses[i][1][1] = materialsStiffnesses[i][2][2] = 1;
     materialsStiffnesses[i][0][1] = materialsStiffnesses[i][0][2] = materialsStiffnesses[i][1][0]
             = materialsStiffnesses[i][1][2] = materialsStiffnesses[i][2][0] =
-            materialsStiffnesses[i][2][1] = poissonRatio/(1-poissonRatio);
+    materialsStiffnesses[i][2][1] = poissonRatio/(1-poissonRatio);
     materialsStiffnesses[i][0][3] = materialsStiffnesses[i][0][4] = materialsStiffnesses[i][0][5] = 0;
     materialsStiffnesses[i][1][3] = materialsStiffnesses[i][1][4] = materialsStiffnesses[i][1][5] = 0;
     materialsStiffnesses[i][2][3] = materialsStiffnesses[i][2][4] = materialsStiffnesses[i][2][5] = 0;
@@ -405,29 +409,29 @@ inline void TetrahedronFEMForceField<DataTypes>::computeForce( Displacement &F, 
 
     VoigtTensor JtD;
     JtD[0] =   J[ 0][0]*Depl[ 0]+/*J[ 1][0]*Depl[ 1]+  J[ 2][0]*Depl[ 2]+*/
-            J[ 3][0]*Depl[ 3]+/*J[ 4][0]*Depl[ 4]+  J[ 5][0]*Depl[ 5]+*/
-            J[ 6][0]*Depl[ 6]+/*J[ 7][0]*Depl[ 7]+  J[ 8][0]*Depl[ 8]+*/
-            J[ 9][0]*Depl[ 9] /*J[10][0]*Depl[10]+  J[11][0]*Depl[11]*/;
+               J[ 3][0]*Depl[ 3]+/*J[ 4][0]*Depl[ 4]+  J[ 5][0]*Depl[ 5]+*/
+               J[ 6][0]*Depl[ 6]+/*J[ 7][0]*Depl[ 7]+  J[ 8][0]*Depl[ 8]+*/
+               J[ 9][0]*Depl[ 9] /*J[10][0]*Depl[10]+  J[11][0]*Depl[11]*/;
     JtD[1] = /*J[ 0][1]*Depl[ 0]+*/J[ 1][1]*Depl[ 1]+/*J[ 2][1]*Depl[ 2]+*/
-            /*J[ 3][1]*Depl[ 3]+*/J[ 4][1]*Depl[ 4]+/*J[ 5][1]*Depl[ 5]+*/
-            /*J[ 6][1]*Depl[ 6]+*/J[ 7][1]*Depl[ 7]+/*J[ 8][1]*Depl[ 8]+*/
-            /*J[ 9][1]*Depl[ 9]+*/J[10][1]*Depl[10] /*J[11][1]*Depl[11]*/;
+                                   /*J[ 3][1]*Depl[ 3]+*/J[ 4][1]*Depl[ 4]+/*J[ 5][1]*Depl[ 5]+*/
+                                   /*J[ 6][1]*Depl[ 6]+*/J[ 7][1]*Depl[ 7]+/*J[ 8][1]*Depl[ 8]+*/
+                                   /*J[ 9][1]*Depl[ 9]+*/J[10][1]*Depl[10] /*J[11][1]*Depl[11]*/;
     JtD[2] = /*J[ 0][2]*Depl[ 0]+  J[ 1][2]*Depl[ 1]+*/J[ 2][2]*Depl[ 2]+
-            /*J[ 3][2]*Depl[ 3]+  J[ 4][2]*Depl[ 4]+*/J[ 5][2]*Depl[ 5]+
-            /*J[ 6][2]*Depl[ 6]+  J[ 7][2]*Depl[ 7]+*/J[ 8][2]*Depl[ 8]+
-            /*J[ 9][2]*Depl[ 9]+  J[10][2]*Depl[10]+*/J[11][2]*Depl[11]  ;
+                                                       /*J[ 3][2]*Depl[ 3]+  J[ 4][2]*Depl[ 4]+*/J[ 5][2]*Depl[ 5]+
+                                                       /*J[ 6][2]*Depl[ 6]+  J[ 7][2]*Depl[ 7]+*/J[ 8][2]*Depl[ 8]+
+                                                       /*J[ 9][2]*Depl[ 9]+  J[10][2]*Depl[10]+*/J[11][2]*Depl[11]  ;
     JtD[3] =   J[ 0][3]*Depl[ 0]+  J[ 1][3]*Depl[ 1]+/*J[ 2][3]*Depl[ 2]+*/
-            J[ 3][3]*Depl[ 3]+  J[ 4][3]*Depl[ 4]+/*J[ 5][3]*Depl[ 5]+*/
-            J[ 6][3]*Depl[ 6]+  J[ 7][3]*Depl[ 7]+/*J[ 8][3]*Depl[ 8]+*/
-            J[ 9][3]*Depl[ 9]+  J[10][3]*Depl[10] /*J[11][3]*Depl[11]*/;
+               J[ 3][3]*Depl[ 3]+  J[ 4][3]*Depl[ 4]+/*J[ 5][3]*Depl[ 5]+*/
+               J[ 6][3]*Depl[ 6]+  J[ 7][3]*Depl[ 7]+/*J[ 8][3]*Depl[ 8]+*/
+               J[ 9][3]*Depl[ 9]+  J[10][3]*Depl[10] /*J[11][3]*Depl[11]*/;
     JtD[4] = /*J[ 0][4]*Depl[ 0]+*/J[ 1][4]*Depl[ 1]+  J[ 2][4]*Depl[ 2]+
-            /*J[ 3][4]*Depl[ 3]+*/J[ 4][4]*Depl[ 4]+  J[ 5][4]*Depl[ 5]+
-            /*J[ 6][4]*Depl[ 6]+*/J[ 7][4]*Depl[ 7]+  J[ 8][4]*Depl[ 8]+
-            /*J[ 9][4]*Depl[ 9]+*/J[10][4]*Depl[10]+  J[11][4]*Depl[11]  ;
+                                   /*J[ 3][4]*Depl[ 3]+*/J[ 4][4]*Depl[ 4]+  J[ 5][4]*Depl[ 5]+
+                                   /*J[ 6][4]*Depl[ 6]+*/J[ 7][4]*Depl[ 7]+  J[ 8][4]*Depl[ 8]+
+                                   /*J[ 9][4]*Depl[ 9]+*/J[10][4]*Depl[10]+  J[11][4]*Depl[11]  ;
     JtD[5] =   J[ 0][5]*Depl[ 0]+/*J[ 1][5]*Depl[ 1]*/ J[ 2][5]*Depl[ 2]+
-            J[ 3][5]*Depl[ 3]+/*J[ 4][5]*Depl[ 4]*/ J[ 5][5]*Depl[ 5]+
-            J[ 6][5]*Depl[ 6]+/*J[ 7][5]*Depl[ 7]*/ J[ 8][5]*Depl[ 8]+
-            J[ 9][5]*Depl[ 9]+/*J[10][5]*Depl[10]*/ J[11][5]*Depl[11];
+               J[ 3][5]*Depl[ 3]+/*J[ 4][5]*Depl[ 4]*/ J[ 5][5]*Depl[ 5]+
+               J[ 6][5]*Depl[ 6]+/*J[ 7][5]*Depl[ 7]*/ J[ 8][5]*Depl[ 8]+
+               J[ 9][5]*Depl[ 9]+/*J[10][5]*Depl[10]*/ J[11][5]*Depl[11];
 
     // eventually remove a part of the strain to simulate plasticity
     if( _plasticMaxThreshold.getValue() > 0 )
@@ -450,11 +454,11 @@ inline void TetrahedronFEMForceField<DataTypes>::computeForce( Displacement &F, 
 
     VoigtTensor KJtD;
     KJtD[0] =   K[0][0]*JtD[0]+  K[0][1]*JtD[1]+  K[0][2]*JtD[2]
-            /*K[0][3]*JtD[3]+  K[0][4]*JtD[4]+  K[0][5]*JtD[5]*/;
+        /*K[0][3]*JtD[3]+  K[0][4]*JtD[4]+  K[0][5]*JtD[5]*/;
     KJtD[1] =   K[1][0]*JtD[0]+  K[1][1]*JtD[1]+  K[1][2]*JtD[2]
-            /*K[1][3]*JtD[3]+  K[1][4]*JtD[4]+  K[1][5]*JtD[5]*/;
+        /*K[1][3]*JtD[3]+  K[1][4]*JtD[4]+  K[1][5]*JtD[5]*/;
     KJtD[2] =   K[2][0]*JtD[0]+  K[2][1]*JtD[1]+  K[2][2]*JtD[2]
-            /*K[2][3]*JtD[3]+  K[2][4]*JtD[4]+  K[2][5]*JtD[5]*/;
+        /*K[2][3]*JtD[3]+  K[2][4]*JtD[4]+  K[2][5]*JtD[5]*/;
     KJtD[3] = /*K[3][0]*JtD[0]+  K[3][1]*JtD[1]+  K[3][2]*JtD[2]+*/
             K[3][3]*JtD[3] /*K[3][4]*JtD[4]+  K[3][5]*JtD[5]*/;
     KJtD[4] = /*K[4][0]*JtD[0]+  K[4][1]*JtD[1]+  K[4][2]*JtD[2]+*/
@@ -463,29 +467,29 @@ inline void TetrahedronFEMForceField<DataTypes>::computeForce( Displacement &F, 
             /*K[5][3]*JtD[3]+  K[5][4]*JtD[4]+*/K[5][5]*JtD[5]  ;
 
     F[ 0] =   J[ 0][0]*KJtD[0]+/*J[ 0][1]*KJtD[1]+  J[ 0][2]*KJtD[2]+*/
-            J[ 0][3]*KJtD[3]+/*J[ 0][4]*KJtD[4]+*/J[ 0][5]*KJtD[5]  ;
+              J[ 0][3]*KJtD[3]+/*J[ 0][4]*KJtD[4]+*/J[ 0][5]*KJtD[5]  ;
     F[ 1] = /*J[ 1][0]*KJtD[0]+*/J[ 1][1]*KJtD[1]+/*J[ 1][2]*KJtD[2]+*/
-            J[ 1][3]*KJtD[3]+  J[ 1][4]*KJtD[4] /*J[ 1][5]*KJtD[5]*/;
+                                 J[ 1][3]*KJtD[3]+  J[ 1][4]*KJtD[4] /*J[ 1][5]*KJtD[5]*/;
     F[ 2] = /*J[ 2][0]*KJtD[0]+  J[ 2][1]*KJtD[1]+*/J[ 2][2]*KJtD[2]+
-            /*J[ 2][3]*KJtD[3]+*/J[ 2][4]*KJtD[4]+  J[ 2][5]*KJtD[5]  ;
+                                                    /*J[ 2][3]*KJtD[3]+*/J[ 2][4]*KJtD[4]+  J[ 2][5]*KJtD[5]  ;
     F[ 3] =   J[ 3][0]*KJtD[0]+/*J[ 3][1]*KJtD[1]+  J[ 3][2]*KJtD[2]+*/
-            J[ 3][3]*KJtD[3]+/*J[ 3][4]*KJtD[4]+*/J[ 3][5]*KJtD[5]  ;
+              J[ 3][3]*KJtD[3]+/*J[ 3][4]*KJtD[4]+*/J[ 3][5]*KJtD[5]  ;
     F[ 4] = /*J[ 4][0]*KJtD[0]+*/J[ 4][1]*KJtD[1]+/*J[ 4][2]*KJtD[2]+*/
-            J[ 4][3]*KJtD[3]+  J[ 4][4]*KJtD[4] /*J[ 4][5]*KJtD[5]*/;
+                                 J[ 4][3]*KJtD[3]+  J[ 4][4]*KJtD[4] /*J[ 4][5]*KJtD[5]*/;
     F[ 5] = /*J[ 5][0]*KJtD[0]+  J[ 5][1]*KJtD[1]+*/J[ 5][2]*KJtD[2]+
-            /*J[ 5][3]*KJtD[3]+*/J[ 5][4]*KJtD[4]+  J[ 5][5]*KJtD[5]  ;
+                                                    /*J[ 5][3]*KJtD[3]+*/J[ 5][4]*KJtD[4]+  J[ 5][5]*KJtD[5]  ;
     F[ 6] =   J[ 6][0]*KJtD[0]+/*J[ 6][1]*KJtD[1]+  J[ 6][2]*KJtD[2]+*/
-            J[ 6][3]*KJtD[3]+/*J[ 6][4]*KJtD[4]+*/J[ 6][5]*KJtD[5]  ;
+              J[ 6][3]*KJtD[3]+/*J[ 6][4]*KJtD[4]+*/J[ 6][5]*KJtD[5]  ;
     F[ 7] = /*J[ 7][0]*KJtD[0]+*/J[ 7][1]*KJtD[1]+/*J[ 7][2]*KJtD[2]+*/
-            J[ 7][3]*KJtD[3]+  J[ 7][4]*KJtD[4] /*J[ 7][5]*KJtD[5]*/;
+                                 J[ 7][3]*KJtD[3]+  J[ 7][4]*KJtD[4] /*J[ 7][5]*KJtD[5]*/;
     F[ 8] = /*J[ 8][0]*KJtD[0]+  J[ 8][1]*KJtD[1]+*/J[ 8][2]*KJtD[2]+
-            /*J[ 8][3]*KJtD[3]+*/J[ 8][4]*KJtD[4]+  J[ 8][5]*KJtD[5]  ;
+                                                    /*J[ 8][3]*KJtD[3]+*/J[ 8][4]*KJtD[4]+  J[ 8][5]*KJtD[5]  ;
     F[ 9] =   J[ 9][0]*KJtD[0]+/*J[ 9][1]*KJtD[1]+  J[ 9][2]*KJtD[2]+*/
-            J[ 9][3]*KJtD[3]+/*J[ 9][4]*KJtD[4]+*/J[ 9][5]*KJtD[5]  ;
+              J[ 9][3]*KJtD[3]+/*J[ 9][4]*KJtD[4]+*/J[ 9][5]*KJtD[5]  ;
     F[10] = /*J[10][0]*KJtD[0]+*/J[10][1]*KJtD[1]+/*J[10][2]*KJtD[2]+*/
-            J[10][3]*KJtD[3]+  J[10][4]*KJtD[4] /*J[10][5]*KJtD[5]*/;
+                                 J[10][3]*KJtD[3]+  J[10][4]*KJtD[4] /*J[10][5]*KJtD[5]*/;
     F[11] = /*J[11][0]*KJtD[0]+  J[11][1]*KJtD[1]+*/J[11][2]*KJtD[2]+
-            /*J[11][3]*KJtD[3]+*/J[11][4]*KJtD[4]+  J[11][5]*KJtD[5]  ;
+                                                    /*J[11][3]*KJtD[3]+*/J[11][4]*KJtD[4]+  J[11][5]*KJtD[5]  ;
 
 #endif
 }
@@ -502,7 +506,7 @@ inline void TetrahedronFEMForceField<DataTypes>::computeForce( Displacement &F, 
 
 #if 0
     F = J*(K*(J.multTranspose(Depl)));
-    F *= fact;
+F *= fact;
 #else
     /* We have these zeros
                                   K[0][3]   K[0][4]   K[0][5]
@@ -529,37 +533,37 @@ inline void TetrahedronFEMForceField<DataTypes>::computeForce( Displacement &F, 
 
     type::VecNoInit<6,Real> JtD;
     JtD[0] =   J[ 0][0]*Depl[ 0]+/*J[ 1][0]*Depl[ 1]+  J[ 2][0]*Depl[ 2]+*/
-            J[ 3][0]*Depl[ 3]+/*J[ 4][0]*Depl[ 4]+  J[ 5][0]*Depl[ 5]+*/
-            J[ 6][0]*Depl[ 6]+/*J[ 7][0]*Depl[ 7]+  J[ 8][0]*Depl[ 8]+*/
-            J[ 9][0]*Depl[ 9] /*J[10][0]*Depl[10]+  J[11][0]*Depl[11]*/;
+               J[ 3][0]*Depl[ 3]+/*J[ 4][0]*Depl[ 4]+  J[ 5][0]*Depl[ 5]+*/
+               J[ 6][0]*Depl[ 6]+/*J[ 7][0]*Depl[ 7]+  J[ 8][0]*Depl[ 8]+*/
+               J[ 9][0]*Depl[ 9] /*J[10][0]*Depl[10]+  J[11][0]*Depl[11]*/;
     JtD[1] = /*J[ 0][1]*Depl[ 0]+*/J[ 1][1]*Depl[ 1]+/*J[ 2][1]*Depl[ 2]+*/
-            /*J[ 3][1]*Depl[ 3]+*/J[ 4][1]*Depl[ 4]+/*J[ 5][1]*Depl[ 5]+*/
-            /*J[ 6][1]*Depl[ 6]+*/J[ 7][1]*Depl[ 7]+/*J[ 8][1]*Depl[ 8]+*/
-            /*J[ 9][1]*Depl[ 9]+*/J[10][1]*Depl[10] /*J[11][1]*Depl[11]*/;
+                                   /*J[ 3][1]*Depl[ 3]+*/J[ 4][1]*Depl[ 4]+/*J[ 5][1]*Depl[ 5]+*/
+                                   /*J[ 6][1]*Depl[ 6]+*/J[ 7][1]*Depl[ 7]+/*J[ 8][1]*Depl[ 8]+*/
+                                   /*J[ 9][1]*Depl[ 9]+*/J[10][1]*Depl[10] /*J[11][1]*Depl[11]*/;
     JtD[2] = /*J[ 0][2]*Depl[ 0]+  J[ 1][2]*Depl[ 1]+*/J[ 2][2]*Depl[ 2]+
-            /*J[ 3][2]*Depl[ 3]+  J[ 4][2]*Depl[ 4]+*/J[ 5][2]*Depl[ 5]+
-            /*J[ 6][2]*Depl[ 6]+  J[ 7][2]*Depl[ 7]+*/J[ 8][2]*Depl[ 8]+
-            /*J[ 9][2]*Depl[ 9]+  J[10][2]*Depl[10]+*/J[11][2]*Depl[11]  ;
+                                                       /*J[ 3][2]*Depl[ 3]+  J[ 4][2]*Depl[ 4]+*/J[ 5][2]*Depl[ 5]+
+                                                       /*J[ 6][2]*Depl[ 6]+  J[ 7][2]*Depl[ 7]+*/J[ 8][2]*Depl[ 8]+
+                                                       /*J[ 9][2]*Depl[ 9]+  J[10][2]*Depl[10]+*/J[11][2]*Depl[11]  ;
     JtD[3] =   J[ 0][3]*Depl[ 0]+  J[ 1][3]*Depl[ 1]+/*J[ 2][3]*Depl[ 2]+*/
-            J[ 3][3]*Depl[ 3]+  J[ 4][3]*Depl[ 4]+/*J[ 5][3]*Depl[ 5]+*/
-            J[ 6][3]*Depl[ 6]+  J[ 7][3]*Depl[ 7]+/*J[ 8][3]*Depl[ 8]+*/
-            J[ 9][3]*Depl[ 9]+  J[10][3]*Depl[10] /*J[11][3]*Depl[11]*/;
+               J[ 3][3]*Depl[ 3]+  J[ 4][3]*Depl[ 4]+/*J[ 5][3]*Depl[ 5]+*/
+               J[ 6][3]*Depl[ 6]+  J[ 7][3]*Depl[ 7]+/*J[ 8][3]*Depl[ 8]+*/
+               J[ 9][3]*Depl[ 9]+  J[10][3]*Depl[10] /*J[11][3]*Depl[11]*/;
     JtD[4] = /*J[ 0][4]*Depl[ 0]+*/J[ 1][4]*Depl[ 1]+  J[ 2][4]*Depl[ 2]+
-            /*J[ 3][4]*Depl[ 3]+*/J[ 4][4]*Depl[ 4]+  J[ 5][4]*Depl[ 5]+
-            /*J[ 6][4]*Depl[ 6]+*/J[ 7][4]*Depl[ 7]+  J[ 8][4]*Depl[ 8]+
-            /*J[ 9][4]*Depl[ 9]+*/J[10][4]*Depl[10]+  J[11][4]*Depl[11]  ;
+                                   /*J[ 3][4]*Depl[ 3]+*/J[ 4][4]*Depl[ 4]+  J[ 5][4]*Depl[ 5]+
+                                   /*J[ 6][4]*Depl[ 6]+*/J[ 7][4]*Depl[ 7]+  J[ 8][4]*Depl[ 8]+
+                                   /*J[ 9][4]*Depl[ 9]+*/J[10][4]*Depl[10]+  J[11][4]*Depl[11]  ;
     JtD[5] =   J[ 0][5]*Depl[ 0]+/*J[ 1][5]*Depl[ 1]*/ J[ 2][5]*Depl[ 2]+
-            J[ 3][5]*Depl[ 3]+/*J[ 4][5]*Depl[ 4]*/ J[ 5][5]*Depl[ 5]+
-            J[ 6][5]*Depl[ 6]+/*J[ 7][5]*Depl[ 7]*/ J[ 8][5]*Depl[ 8]+
-            J[ 9][5]*Depl[ 9]+/*J[10][5]*Depl[10]*/ J[11][5]*Depl[11];
+               J[ 3][5]*Depl[ 3]+/*J[ 4][5]*Depl[ 4]*/ J[ 5][5]*Depl[ 5]+
+               J[ 6][5]*Depl[ 6]+/*J[ 7][5]*Depl[ 7]*/ J[ 8][5]*Depl[ 8]+
+               J[ 9][5]*Depl[ 9]+/*J[10][5]*Depl[10]*/ J[11][5]*Depl[11];
 
     type::VecNoInit<6,Real> KJtD;
     KJtD[0] =   K[0][0]*JtD[0]+  K[0][1]*JtD[1]+  K[0][2]*JtD[2]
-            /*K[0][3]*JtD[3]+  K[0][4]*JtD[4]+  K[0][5]*JtD[5]*/;
+        /*K[0][3]*JtD[3]+  K[0][4]*JtD[4]+  K[0][5]*JtD[5]*/;
     KJtD[1] =   K[1][0]*JtD[0]+  K[1][1]*JtD[1]+  K[1][2]*JtD[2]
-            /*K[1][3]*JtD[3]+  K[1][4]*JtD[4]+  K[1][5]*JtD[5]*/;
+        /*K[1][3]*JtD[3]+  K[1][4]*JtD[4]+  K[1][5]*JtD[5]*/;
     KJtD[2] =   K[2][0]*JtD[0]+  K[2][1]*JtD[1]+  K[2][2]*JtD[2]
-            /*K[2][3]*JtD[3]+  K[2][4]*JtD[4]+  K[2][5]*JtD[5]*/;
+        /*K[2][3]*JtD[3]+  K[2][4]*JtD[4]+  K[2][5]*JtD[5]*/;
     KJtD[3] = /*K[3][0]*JtD[0]+  K[3][1]*JtD[1]+  K[3][2]*JtD[2]+*/
             K[3][3]*JtD[3] /*K[3][4]*JtD[4]+  K[3][5]*JtD[5]*/;
     KJtD[4] = /*K[4][0]*JtD[0]+  K[4][1]*JtD[1]+  K[4][2]*JtD[2]+*/
@@ -570,29 +574,29 @@ inline void TetrahedronFEMForceField<DataTypes>::computeForce( Displacement &F, 
     KJtD *= fact;
 
     F[ 0] =   J[ 0][0]*KJtD[0]+/*J[ 0][1]*KJtD[1]+  J[ 0][2]*KJtD[2]+*/
-            J[ 0][3]*KJtD[3]+/*J[ 0][4]*KJtD[4]+*/J[ 0][5]*KJtD[5]  ;
+              J[ 0][3]*KJtD[3]+/*J[ 0][4]*KJtD[4]+*/J[ 0][5]*KJtD[5]  ;
     F[ 1] = /*J[ 1][0]*KJtD[0]+*/J[ 1][1]*KJtD[1]+/*J[ 1][2]*KJtD[2]+*/
-            J[ 1][3]*KJtD[3]+  J[ 1][4]*KJtD[4] /*J[ 1][5]*KJtD[5]*/;
+                                 J[ 1][3]*KJtD[3]+  J[ 1][4]*KJtD[4] /*J[ 1][5]*KJtD[5]*/;
     F[ 2] = /*J[ 2][0]*KJtD[0]+  J[ 2][1]*KJtD[1]+*/J[ 2][2]*KJtD[2]+
-            /*J[ 2][3]*KJtD[3]+*/J[ 2][4]*KJtD[4]+  J[ 2][5]*KJtD[5]  ;
+                                                    /*J[ 2][3]*KJtD[3]+*/J[ 2][4]*KJtD[4]+  J[ 2][5]*KJtD[5]  ;
     F[ 3] =   J[ 3][0]*KJtD[0]+/*J[ 3][1]*KJtD[1]+  J[ 3][2]*KJtD[2]+*/
-            J[ 3][3]*KJtD[3]+/*J[ 3][4]*KJtD[4]+*/J[ 3][5]*KJtD[5]  ;
+              J[ 3][3]*KJtD[3]+/*J[ 3][4]*KJtD[4]+*/J[ 3][5]*KJtD[5]  ;
     F[ 4] = /*J[ 4][0]*KJtD[0]+*/J[ 4][1]*KJtD[1]+/*J[ 4][2]*KJtD[2]+*/
-            J[ 4][3]*KJtD[3]+  J[ 4][4]*KJtD[4] /*J[ 4][5]*KJtD[5]*/;
+                                 J[ 4][3]*KJtD[3]+  J[ 4][4]*KJtD[4] /*J[ 4][5]*KJtD[5]*/;
     F[ 5] = /*J[ 5][0]*KJtD[0]+  J[ 5][1]*KJtD[1]+*/J[ 5][2]*KJtD[2]+
-            /*J[ 5][3]*KJtD[3]+*/J[ 5][4]*KJtD[4]+  J[ 5][5]*KJtD[5]  ;
+                                                    /*J[ 5][3]*KJtD[3]+*/J[ 5][4]*KJtD[4]+  J[ 5][5]*KJtD[5]  ;
     F[ 6] =   J[ 6][0]*KJtD[0]+/*J[ 6][1]*KJtD[1]+  J[ 6][2]*KJtD[2]+*/
-            J[ 6][3]*KJtD[3]+/*J[ 6][4]*KJtD[4]+*/J[ 6][5]*KJtD[5]  ;
+              J[ 6][3]*KJtD[3]+/*J[ 6][4]*KJtD[4]+*/J[ 6][5]*KJtD[5]  ;
     F[ 7] = /*J[ 7][0]*KJtD[0]+*/J[ 7][1]*KJtD[1]+/*J[ 7][2]*KJtD[2]+*/
-            J[ 7][3]*KJtD[3]+  J[ 7][4]*KJtD[4] /*J[ 7][5]*KJtD[5]*/;
+                                 J[ 7][3]*KJtD[3]+  J[ 7][4]*KJtD[4] /*J[ 7][5]*KJtD[5]*/;
     F[ 8] = /*J[ 8][0]*KJtD[0]+  J[ 8][1]*KJtD[1]+*/J[ 8][2]*KJtD[2]+
-            /*J[ 8][3]*KJtD[3]+*/J[ 8][4]*KJtD[4]+  J[ 8][5]*KJtD[5]  ;
+                                                    /*J[ 8][3]*KJtD[3]+*/J[ 8][4]*KJtD[4]+  J[ 8][5]*KJtD[5]  ;
     F[ 9] =   J[ 9][0]*KJtD[0]+/*J[ 9][1]*KJtD[1]+  J[ 9][2]*KJtD[2]+*/
-            J[ 9][3]*KJtD[3]+/*J[ 9][4]*KJtD[4]+*/J[ 9][5]*KJtD[5]  ;
+              J[ 9][3]*KJtD[3]+/*J[ 9][4]*KJtD[4]+*/J[ 9][5]*KJtD[5]  ;
     F[10] = /*J[10][0]*KJtD[0]+*/J[10][1]*KJtD[1]+/*J[10][2]*KJtD[2]+*/
-            J[10][3]*KJtD[3]+  J[10][4]*KJtD[4] /*J[10][5]*KJtD[5]*/;
+                                 J[10][3]*KJtD[3]+  J[10][4]*KJtD[4] /*J[10][5]*KJtD[5]*/;
     F[11] = /*J[11][0]*KJtD[0]+  J[11][1]*KJtD[1]+*/J[11][2]*KJtD[2]+
-            /*J[11][3]*KJtD[3]+*/J[11][4]*KJtD[4]+  J[11][5]*KJtD[5]  ;
+                                                    /*J[11][3]*KJtD[3]+*/J[11][4]*KJtD[4]+  J[11][5]*KJtD[5]  ;
 #endif
 }
 
@@ -713,88 +717,88 @@ inline SReal TetrahedronFEMForceField<DataTypes>::getPotentialEnergy(const core:
 
     switch(method)
     {
-    case SMALL :
-    {
-
-        for(it=_indexedElements->begin(), i = 0 ; it!=_indexedElements->end(); ++it,++i)
+        case SMALL :
         {
-            Element index = *it;
-            Index a = index[0];
-            Index b = index[1];
-            Index c = index[2];
-            Index d = index[3];
 
-            // displacements
-            Displacement D;
-            D[0] = 0;
-            D[1] = 0;
-            D[2] = 0;
-            D[3] =  initialPoints[b][0] - initialPoints[a][0] - p[b][0]+p[a][0];
-            D[4] =  initialPoints[b][1] - initialPoints[a][1] - p[b][1]+p[a][1];
-            D[5] =  initialPoints[b][2] - initialPoints[a][2] - p[b][2]+p[a][2];
-            D[6] =  initialPoints[c][0] - initialPoints[a][0] - p[c][0]+p[a][0];
-            D[7] =  initialPoints[c][1] - initialPoints[a][1] - p[c][1]+p[a][1];
-            D[8] =  initialPoints[c][2] - initialPoints[a][2] - p[c][2]+p[a][2];
-            D[9] =  initialPoints[d][0] - initialPoints[a][0] - p[d][0]+p[a][0];
-            D[10] = initialPoints[d][1] - initialPoints[a][1] - p[d][1]+p[a][1];
-            D[11] = initialPoints[d][2] - initialPoints[a][2] - p[d][2]+p[a][2];
-
-            if(!_assembling.getValue())
+            for(it=_indexedElements->begin(), i = 0 ; it!=_indexedElements->end(); ++it,++i)
             {
+                Element index = *it;
+                Index a = index[0];
+                Index b = index[1];
+                Index c = index[2];
+                Index d = index[3];
 
-                // compute force on element
-                Displacement F;
+                // displacements
+                Displacement D;
+                D[0] = 0;
+                D[1] = 0;
+                D[2] = 0;
+                D[3] =  initialPoints[b][0] - initialPoints[a][0] - p[b][0]+p[a][0];
+                D[4] =  initialPoints[b][1] - initialPoints[a][1] - p[b][1]+p[a][1];
+                D[5] =  initialPoints[b][2] - initialPoints[a][2] - p[b][2]+p[a][2];
+                D[6] =  initialPoints[c][0] - initialPoints[a][0] - p[c][0]+p[a][0];
+                D[7] =  initialPoints[c][1] - initialPoints[a][1] - p[c][1]+p[a][1];
+                D[8] =  initialPoints[c][2] - initialPoints[a][2] - p[c][2]+p[a][2];
+                D[9] =  initialPoints[d][0] - initialPoints[a][0] - p[d][0]+p[a][0];
+                D[10] = initialPoints[d][1] - initialPoints[a][1] - p[d][1]+p[a][1];
+                D[11] = initialPoints[d][2] - initialPoints[a][2] - p[d][2]+p[a][2];
 
-                // ComputeForce without the case of  plasticity simulation when  _plasticMaxThreshold.getValue() > 0
-                // This case actually modifies  the member plasticStrain and getPotentialEnergy is a const fonction.
-                MaterialStiffness K = materialsStiffnesses[i];
-                StrainDisplacement J = strainDisplacements[i];
+                if(!_assembling.getValue())
+                {
 
-                /// The following may be doing F = J*(K*(J.multTranspose(D))) ?
-                VoigtTensor JtD;
-                JtD[0] = J[ 0][0]*D[ 0]+ J[ 3][0]*D[ 3]+ J[ 6][0]*D[ 6]+ J[ 9][0]*D[ 9];
-                JtD[1] = J[ 1][1]*D[ 1]+ J[ 4][1]*D[ 4]+ J[ 7][1]*D[ 7]+ J[10][1]*D[10];
-                JtD[2] = J[ 2][2]*D[ 2]+ J[ 5][2]*D[ 5]+ J[ 8][2]*D[ 8]+ J[11][2]*D[11];
-                JtD[3] = J[ 0][3]*D[ 0]+ J[ 1][3]*D[ 1]+ J[ 3][3]*D[ 3]+ J[ 4][3]*D[ 4]+
-                        J[ 6][3]*D[ 6]+ J[ 7][3]*D[ 7]+ J[ 9][3]*D[ 9]+ J[10][3]*D[10];
-                JtD[4] = J[ 1][4]*D[ 1]+ J[ 2][4]*D[ 2]+ J[ 4][4]*D[ 4]+ J[ 5][4]*D[ 5]+
-                        J[ 7][4]*D[ 7]+ J[ 8][4]*D[ 8]+ J[10][4]*D[10]+ J[11][4]*D[11];
-                JtD[5] = J[ 0][5]*D[ 0]+ J[ 2][5]*D[ 2]+ J[ 3][5]*D[ 3]+ J[ 5][5]*D[ 5]+
-                        J[ 6][5]*D[ 6]+ J[ 8][5]*D[ 8]+ J[ 9][5]*D[ 9]+ J[11][5]*D[11];
+                    // compute force on element
+                    Displacement F;
+
+                    // ComputeForce without the case of  plasticity simulation when  _plasticMaxThreshold.getValue() > 0
+                    // This case actually modifies  the member plasticStrain and getPotentialEnergy is a const fonction.
+                    MaterialStiffness K = materialsStiffnesses[i];
+                    StrainDisplacement J = strainDisplacements[i];
+
+                    /// The following may be doing F = J*(K*(J.multTranspose(D))) ?
+                    VoigtTensor JtD;
+                    JtD[0] = J[ 0][0]*D[ 0]+ J[ 3][0]*D[ 3]+ J[ 6][0]*D[ 6]+ J[ 9][0]*D[ 9];
+                    JtD[1] = J[ 1][1]*D[ 1]+ J[ 4][1]*D[ 4]+ J[ 7][1]*D[ 7]+ J[10][1]*D[10];
+                    JtD[2] = J[ 2][2]*D[ 2]+ J[ 5][2]*D[ 5]+ J[ 8][2]*D[ 8]+ J[11][2]*D[11];
+                    JtD[3] = J[ 0][3]*D[ 0]+ J[ 1][3]*D[ 1]+ J[ 3][3]*D[ 3]+ J[ 4][3]*D[ 4]+
+                             J[ 6][3]*D[ 6]+ J[ 7][3]*D[ 7]+ J[ 9][3]*D[ 9]+ J[10][3]*D[10];
+                    JtD[4] = J[ 1][4]*D[ 1]+ J[ 2][4]*D[ 2]+ J[ 4][4]*D[ 4]+ J[ 5][4]*D[ 5]+
+                             J[ 7][4]*D[ 7]+ J[ 8][4]*D[ 8]+ J[10][4]*D[10]+ J[11][4]*D[11];
+                    JtD[5] = J[ 0][5]*D[ 0]+ J[ 2][5]*D[ 2]+ J[ 3][5]*D[ 3]+ J[ 5][5]*D[ 5]+
+                             J[ 6][5]*D[ 6]+ J[ 8][5]*D[ 8]+ J[ 9][5]*D[ 9]+ J[11][5]*D[11];
 
 
-                VoigtTensor KJtD;
-                KJtD[0] = K[0][0]*JtD[0]+  K[0][1]*JtD[1]+  K[0][2]*JtD[2];
-                KJtD[1] = K[1][0]*JtD[0]+  K[1][1]*JtD[1]+  K[1][2]*JtD[2];
-                KJtD[2] = K[2][0]*JtD[0]+  K[2][1]*JtD[1]+  K[2][2]*JtD[2];
-                KJtD[3] = K[3][3]*JtD[3] ;
-                KJtD[4] = K[4][4]*JtD[4];
-                KJtD[5] = K[5][5]*JtD[5]  ;
+                    VoigtTensor KJtD;
+                    KJtD[0] = K[0][0]*JtD[0]+  K[0][1]*JtD[1]+  K[0][2]*JtD[2];
+                    KJtD[1] = K[1][0]*JtD[0]+  K[1][1]*JtD[1]+  K[1][2]*JtD[2];
+                    KJtD[2] = K[2][0]*JtD[0]+  K[2][1]*JtD[1]+  K[2][2]*JtD[2];
+                    KJtD[3] = K[3][3]*JtD[3] ;
+                    KJtD[4] = K[4][4]*JtD[4];
+                    KJtD[5] = K[5][5]*JtD[5]  ;
 
-                F[ 0] = J[ 0][0]*KJtD[0]+ J[ 0][3]*KJtD[3]+ J[ 0][5]*KJtD[5];
-                F[ 1] = J[ 1][1]*KJtD[1]+ J[ 1][3]*KJtD[3]+ J[ 1][4]*KJtD[4];
-                F[ 2] = J[ 2][2]*KJtD[2]+ J[ 2][4]*KJtD[4]+ J[ 2][5]*KJtD[5];
-                F[ 3] = J[ 3][0]*KJtD[0]+ J[ 3][3]*KJtD[3]+ J[ 3][5]*KJtD[5];
-                F[ 4] = J[ 4][1]*KJtD[1]+ J[ 4][3]*KJtD[3]+ J[ 4][
-                        4]*KJtD[4];
-                F[ 5] = J[ 5][2]*KJtD[2]+ J[ 5][4]*KJtD[4]+ J[ 5][5]*KJtD[5];
-                F[ 6] = J[ 6][0]*KJtD[0]+ J[ 6][3]*KJtD[3]+ J[ 6][5]*KJtD[5];
-                F[ 7] = J[ 7][1]*KJtD[1]+ J[ 7][3]*KJtD[3]+ J[ 7][4]*KJtD[4];
-                F[ 8] = J[ 8][2]*KJtD[2]+ J[ 8][4]*KJtD[4]+ J[ 8][5]*KJtD[5];
-                F[ 9] = J[ 9][0]*KJtD[0]+ J[ 9][3]*KJtD[3]+ J[ 9][5]*KJtD[5];
-                F[10] = J[10][1]*KJtD[1]+ J[10][3]*KJtD[3]+ J[10][4]*KJtD[4];
-                F[11] = J[11][2]*KJtD[2]+ J[11][4]*KJtD[4]+ J[11][5]*KJtD[5];
+                    F[ 0] = J[ 0][0]*KJtD[0]+ J[ 0][3]*KJtD[3]+ J[ 0][5]*KJtD[5];
+                    F[ 1] = J[ 1][1]*KJtD[1]+ J[ 1][3]*KJtD[3]+ J[ 1][4]*KJtD[4];
+                    F[ 2] = J[ 2][2]*KJtD[2]+ J[ 2][4]*KJtD[4]+ J[ 2][5]*KJtD[5];
+                    F[ 3] = J[ 3][0]*KJtD[0]+ J[ 3][3]*KJtD[3]+ J[ 3][5]*KJtD[5];
+                    F[ 4] = J[ 4][1]*KJtD[1]+ J[ 4][3]*KJtD[3]+ J[ 4][
+                                                                        4]*KJtD[4];
+                    F[ 5] = J[ 5][2]*KJtD[2]+ J[ 5][4]*KJtD[4]+ J[ 5][5]*KJtD[5];
+                    F[ 6] = J[ 6][0]*KJtD[0]+ J[ 6][3]*KJtD[3]+ J[ 6][5]*KJtD[5];
+                    F[ 7] = J[ 7][1]*KJtD[1]+ J[ 7][3]*KJtD[3]+ J[ 7][4]*KJtD[4];
+                    F[ 8] = J[ 8][2]*KJtD[2]+ J[ 8][4]*KJtD[4]+ J[ 8][5]*KJtD[5];
+                    F[ 9] = J[ 9][0]*KJtD[0]+ J[ 9][3]*KJtD[3]+ J[ 9][5]*KJtD[5];
+                    F[10] = J[10][1]*KJtD[1]+ J[10][3]*KJtD[3]+ J[10][4]*KJtD[4];
+                    F[11] = J[11][2]*KJtD[2]+ J[11][4]*KJtD[4]+ J[11][5]*KJtD[5];
 
-                // Compute potentialEnergy
-                energyPotential += dot(Deriv( F[0], F[1], F[2] ) ,-Deriv( D[0], D[1], D[2]));
-                energyPotential += dot(Deriv( F[3], F[4], F[5] ) ,-Deriv( D[3], D[4], D[5] ));
-                energyPotential += dot(Deriv( F[6], F[7], F[8] ) ,-Deriv( D[6], D[7], D[8] ));
-                energyPotential += dot(Deriv( F[9], F[10], F[11]),-Deriv( D[9], D[10], D[11] ));
+                    // Compute potentialEnergy
+                    energyPotential += dot(Deriv( F[0], F[1], F[2] ) ,-Deriv( D[0], D[1], D[2]));
+                    energyPotential += dot(Deriv( F[3], F[4], F[5] ) ,-Deriv( D[3], D[4], D[5] ));
+                    energyPotential += dot(Deriv( F[6], F[7], F[8] ) ,-Deriv( D[6], D[7], D[8] ));
+                    energyPotential += dot(Deriv( F[9], F[10], F[11]),-Deriv( D[9], D[10], D[11] ));
+                }
             }
+            energyPotential/=-2.0;
+            break;
         }
-        energyPotential/=-2.0;
-        break;
-    }
     }
 
     return energyPotential;
@@ -842,9 +846,9 @@ inline void TetrahedronFEMForceField<DataTypes>::computeRotationLarge( Transform
     // third vector orthogonal to first and second
 
     const Coord edgex = (p[b]-p[a]).normalized();
-          Coord edgey = p[c]-p[a];
+    Coord edgey = p[c]-p[a];
     const Coord edgez = cross( edgex, edgey ).normalized();
-                edgey = cross( edgez, edgex ); //edgey is unit vector because edgez and edgex are orthogonal unit vectors
+    edgey = cross( edgez, edgex ); //edgey is unit vector because edgez and edgex are orthogonal unit vectors
 
     r[0][0] = edgex[0];
     r[0][1] = edgex[1];
@@ -862,7 +866,7 @@ inline void TetrahedronFEMForceField<DataTypes>::computeRotationLarge( Transform
 //HACK get rotation for fast contact handling with simplified compliance
 template<class DataTypes>
 inline void TetrahedronFEMForceField<DataTypes>::getRotation(Mat33& R, unsigned int nodeIdx)
-{ 
+{
     if(method == SMALL)
     {
         R[0][0] = 1.0 ; R[1][1] = 1.0 ; R[2][2] = 1.0 ;
@@ -945,8 +949,8 @@ void TetrahedronFEMForceField<DataTypes>::initLarge(Index i, Index&a, Index&b, I
     _rotatedInitialElements[i][0] = Coord(0,0,0);
 
     computeStrainDisplacement(strainDisplacements[i],_rotatedInitialElements[i][0],
-            _rotatedInitialElements[i][1],_rotatedInitialElements[i][2],
-            _rotatedInitialElements[i][3] );
+                              _rotatedInitialElements[i][1],_rotatedInitialElements[i][2],
+                              _rotatedInitialElements[i][3] );
 }
 
 template<class DataTypes>
@@ -1100,7 +1104,7 @@ void TetrahedronFEMForceField<DataTypes>::initPolar(Index i, Index& a, Index&b, 
     _rotatedInitialElements[i][3] = R_0_1*initialPoints[d];
 
     computeStrainDisplacement( strainDisplacements[i],_rotatedInitialElements[i][0],
-                                _rotatedInitialElements[i][1],_rotatedInitialElements[i][2],_rotatedInitialElements[i][3] );
+                               _rotatedInitialElements[i][1],_rotatedInitialElements[i][2],_rotatedInitialElements[i][3] );
 
 }
 
@@ -1382,7 +1386,7 @@ void TetrahedronFEMForceField<DataTypes>::init()
     if (m_topology == nullptr)
     {
         msg_error() << "No topology component found at path: " << l_topology.getLinkedPath() << ", nor in current context: " << this->getContext()->name << " object must have a mesh topology. The component is inactivated.  "
-            "To remove this error message please add a topology component to your scene.";
+                                                                                                                                                            "To remove this error message please add a topology component to your scene.";
         this->d_componentState.setValue(sofa::core::objectmodel::ComponentState::Invalid);
 
         // Need to affect a vector to the pointer even if it is empty.
@@ -1392,7 +1396,7 @@ void TetrahedronFEMForceField<DataTypes>::init()
         return;
     }
 
-    
+
     if (m_topology->getNbTetrahedra()<=0 && m_topology->getNbHexahedra()<=0)
     {
         msg_error()     << " object must have a tetrahedric topology. The component is inactivated.  "
@@ -1465,7 +1469,7 @@ void TetrahedronFEMForceField<DataTypes>::init()
             tetrahedra->push_back(Tetra(c[6],c[7],c[0],c[5]));
             tetrahedra->push_back(Tetra(c[7],c[5],c[4],c[0]));
         }
-       _indexedElements = tetrahedra;
+        _indexedElements = tetrahedra;
     }
 
     this->d_componentState.setValue(ComponentState::Valid) ;
@@ -1473,6 +1477,33 @@ void TetrahedronFEMForceField<DataTypes>::init()
     reinit(); // compute per-element stiffness matrices and other precomputed values
 
     msg_info() << "Init done with "<<_indexedElements->size()<<" tetras.";
+
+    // compute surface
+    auto & renderList1 = d_renderPoints1.getValue();
+    auto & renderList2 = d_renderPoints2.getValue();
+
+    type::vector<Index> renderList;
+    renderList.reserve( renderList1.size() + renderList2.size() ); // preallocate memory
+    renderList.insert( renderList.end(), renderList1.begin(), renderList1.end() );
+    renderList.insert( renderList.end(), renderList2.begin(), renderList2.end() );
+
+    m_surfaceTriangles.clear();
+    for(unsigned tid=0; tid<l_topology->getNbTriangles(); tid++) {
+        auto & tat = l_topology->getTetrahedraAroundTriangle(tid);
+
+        if (tat.size()==1) {
+            auto & tri = l_topology->getTriangle(tid);
+
+            if(!renderList.empty()) {
+                if (std::find(renderList.begin(), renderList.end(), tri[0]) == renderList.end()) continue;
+                if (std::find(renderList.begin(), renderList.end(), tri[1]) == renderList.end()) continue;
+                if (std::find(renderList.begin(), renderList.end(), tri[2]) == renderList.end()) continue;
+            }
+
+            m_surfaceTriangles.push_back(tri);
+            core::topology::BaseMeshTopology::EdgesInTriangle edgesInTriangle = l_topology->getEdgesInTriangle(tid);
+        }
+    }
 }
 
 
@@ -1549,75 +1580,75 @@ inline void TetrahedronFEMForceField<DataTypes>::reinit()
     typename VecElement::const_iterator it;
     switch(method)
     {
-    case SMALL :
-    {
-        for(it = _indexedElements->begin(), i = 0 ; it != _indexedElements->end() ; ++it, ++i)
+        case SMALL :
         {
-            Index a = (*it)[0];
-            Index b = (*it)[1];
-            Index c = (*it)[2];
-            Index d = (*it)[3];
-            this->computeMaterialStiffness(i,a,b,c,d);
-            this->initSmall(i,a,b,c,d);
+            for(it = _indexedElements->begin(), i = 0 ; it != _indexedElements->end() ; ++it, ++i)
+            {
+                Index a = (*it)[0];
+                Index b = (*it)[1];
+                Index c = (*it)[2];
+                Index d = (*it)[3];
+                this->computeMaterialStiffness(i,a,b,c,d);
+                this->initSmall(i,a,b,c,d);
+            }
+            break;
         }
-        break;
-    }
-    case LARGE :
-    {
-        rotations.resize( _indexedElements->size() );
-        _initialRotations.resize( _indexedElements->size() );
-        _rotationIdx.resize(m_topology->getNbPoints());
-        _rotatedInitialElements.resize(_indexedElements->size());
-        for(it = _indexedElements->begin(), i = 0 ; it != _indexedElements->end() ; ++it, ++i)
+        case LARGE :
         {
-            Index a = (*it)[0];
-            Index b = (*it)[1];
-            Index c = (*it)[2];
-            Index d = (*it)[3];
-            computeMaterialStiffness(i,a,b,c,d);
-            initLarge(i,a,b,c,d);
+            rotations.resize( _indexedElements->size() );
+            _initialRotations.resize( _indexedElements->size() );
+            _rotationIdx.resize(m_topology->getNbPoints());
+            _rotatedInitialElements.resize(_indexedElements->size());
+            for(it = _indexedElements->begin(), i = 0 ; it != _indexedElements->end() ; ++it, ++i)
+            {
+                Index a = (*it)[0];
+                Index b = (*it)[1];
+                Index c = (*it)[2];
+                Index d = (*it)[3];
+                computeMaterialStiffness(i,a,b,c,d);
+                initLarge(i,a,b,c,d);
+            }
+            break;
         }
-        break;
-    }
-    case POLAR :
-    {
-        rotations.resize( _indexedElements->size() );
-        _initialRotations.resize( _indexedElements->size() );
-        _rotationIdx.resize(m_topology->getNbPoints());
-        _rotatedInitialElements.resize(_indexedElements->size());
-        unsigned int i=0;
-        typename VecElement::const_iterator it;
-        for(it = _indexedElements->begin(), i = 0 ; it != _indexedElements->end() ; ++it, ++i)
+        case POLAR :
         {
-            Index a = (*it)[0];
-            Index b = (*it)[1];
-            Index c = (*it)[2];
-            Index d = (*it)[3];
-            computeMaterialStiffness(i,a,b,c,d);
-            initPolar(i,a,b,c,d);
+            rotations.resize( _indexedElements->size() );
+            _initialRotations.resize( _indexedElements->size() );
+            _rotationIdx.resize(m_topology->getNbPoints());
+            _rotatedInitialElements.resize(_indexedElements->size());
+            unsigned int i=0;
+            typename VecElement::const_iterator it;
+            for(it = _indexedElements->begin(), i = 0 ; it != _indexedElements->end() ; ++it, ++i)
+            {
+                Index a = (*it)[0];
+                Index b = (*it)[1];
+                Index c = (*it)[2];
+                Index d = (*it)[3];
+                computeMaterialStiffness(i,a,b,c,d);
+                initPolar(i,a,b,c,d);
+            }
+            break;
         }
-        break;
-    }
-    case SVD :
-    {
-        rotations.resize( _indexedElements->size() );
-        _initialRotations.resize( _indexedElements->size() );
-        _rotationIdx.resize(m_topology->getNbPoints());
-        _rotatedInitialElements.resize(_indexedElements->size());
-        _initialTransformation.resize(_indexedElements->size());
-        unsigned int i=0;
-        typename VecElement::const_iterator it;
-        for(it = _indexedElements->begin(), i = 0 ; it != _indexedElements->end() ; ++it, ++i)
+        case SVD :
         {
-            Index a = (*it)[0];
-            Index b = (*it)[1];
-            Index c = (*it)[2];
-            Index d = (*it)[3];
-            computeMaterialStiffness(i,a,b,c,d);
-            initSVD(i,a,b,c,d);
+            rotations.resize( _indexedElements->size() );
+            _initialRotations.resize( _indexedElements->size() );
+            _rotationIdx.resize(m_topology->getNbPoints());
+            _rotatedInitialElements.resize(_indexedElements->size());
+            _initialTransformation.resize(_indexedElements->size());
+            unsigned int i=0;
+            typename VecElement::const_iterator it;
+            for(it = _indexedElements->begin(), i = 0 ; it != _indexedElements->end() ; ++it, ++i)
+            {
+                Index a = (*it)[0];
+                Index b = (*it)[1];
+                Index c = (*it)[2];
+                Index d = (*it)[3];
+                computeMaterialStiffness(i,a,b,c,d);
+                initSVD(i,a,b,c,d);
+            }
+            break;
         }
-        break;
-    }
     }
 
     if ( isComputeVonMisesStressMethodSet() )
@@ -1666,39 +1697,39 @@ inline void TetrahedronFEMForceField<DataTypes>::addForce (const core::Mechanica
     typename VecElement::const_iterator it;
     switch(method)
     {
-    case SMALL :
-    {
-        for(it=_indexedElements->begin(), i = 0 ; it!=_indexedElements->end(); ++it,++i)
+        case SMALL :
         {
-            accumulateForceSmall( f, p, it, i );
+            for(it=_indexedElements->begin(), i = 0 ; it!=_indexedElements->end(); ++it,++i)
+            {
+                accumulateForceSmall( f, p, it, i );
+            }
+            break;
         }
-        break;
-    }
-    case LARGE :
-    {
-        for(it=_indexedElements->begin(), i = 0 ; it!=_indexedElements->end(); ++it,++i)
+        case LARGE :
         {
+            for(it=_indexedElements->begin(), i = 0 ; it!=_indexedElements->end(); ++it,++i)
+            {
 
-            accumulateForceLarge( f, p, it, i );
+                accumulateForceLarge( f, p, it, i );
+            }
+            break;
         }
-        break;
-    }
-    case POLAR :
-    {
-        for(it=_indexedElements->begin(), i = 0 ; it!=_indexedElements->end(); ++it,++i)
+        case POLAR :
         {
-            accumulateForcePolar( f, p, it, i );
+            for(it=_indexedElements->begin(), i = 0 ; it!=_indexedElements->end(); ++it,++i)
+            {
+                accumulateForcePolar( f, p, it, i );
+            }
+            break;
         }
-        break;
-    }
-    case SVD :
-    {
-        for(it=_indexedElements->begin(), i = 0 ; it!=_indexedElements->end(); ++it,++i)
+        case SVD :
         {
-            accumulateForceSVD( f, p, it, i );
+            for(it=_indexedElements->begin(), i = 0 ; it!=_indexedElements->end(); ++it,++i)
+            {
+                accumulateForceSVD( f, p, it, i );
+            }
+            break;
         }
-        break;
-    }
     }
     d_f.endEdit();
 
@@ -1802,20 +1833,21 @@ void TetrahedronFEMForceField<DataTypes>::drawTrianglesFromTetrahedra(
     const auto showWireFrame = vparams->displayFlags().getShowWireFrame();
 
     sofa::simulation::forEachRange(this->_indexedElements->begin(), this->_indexedElements->end(),
-        [&](const sofa::simulation::Range<VecElement::const_iterator>& range)
-        {
-            this->drawTrianglesFromRangeOfTetrahedra(range, vparams, showVonMisesStressPerElement, drawVonMisesStress, showWireFrame, x, youngModulus, heterogeneous, minVM, maxVM, vM);
-        });
+                                   [&](const sofa::simulation::Range<VecElement::const_iterator>& range)
+                                   {
+                                       this->drawTrianglesFromRangeOfTetrahedra(range, vparams, showVonMisesStressPerElement, drawVonMisesStress, showWireFrame, x, youngModulus, heterogeneous, minVM, maxVM, vM);
+                                   });
 
+    vparams->drawTool()->enableBlending();
     vparams->drawTool()->drawTriangles(m_renderedPoints, m_renderedColors);
 }
 
 template <class DataTypes>
 void TetrahedronFEMForceField<DataTypes>::drawTrianglesFromRangeOfTetrahedra(
-    const sofa::simulation::Range<VecElement::const_iterator>& range,
-    const core::visual::VisualParams* vparams, bool showVonMisesStressPerElement,
-    bool drawVonMisesStress, bool showWireFrame, const VecCoord& x, const VecReal& youngModulus, bool heterogeneous,
-    Real minVM, Real maxVM, helper::ReadAccessor<Data<type::vector<Real>>> vM)
+        const sofa::simulation::Range<VecElement::const_iterator>& range,
+        const core::visual::VisualParams* vparams, bool showVonMisesStressPerElement,
+        bool drawVonMisesStress, bool showWireFrame, const VecCoord& x, const VecReal& youngModulus, bool heterogeneous,
+        Real minVM, Real maxVM, helper::ReadAccessor<Data<type::vector<Real>>> vM)
 {
     SOFA_UNUSED(vparams);
 
@@ -1833,45 +1865,59 @@ void TetrahedronFEMForceField<DataTypes>::drawTrianglesFromRangeOfTetrahedra(
             p[vId] = x[(*it)[vId]];
         }
 
-        const Coord center = (p[0] + p[1] + p[2] + p[3]) * 0.125;
-
-        if ( !showWireFrame )
+        if ( !showWireFrame && d_showElementGapScale.getValue() != 0.0 )
         {
+            const Coord center = (p[0] + p[1] + p[2] + p[3]) * 0.25;
+
+            if(d_showElementGapScale.getValue() > 1.0) d_showElementGapScale.setValue(1.0);
+            if(d_showElementGapScale.getValue() < 0.0) d_showElementGapScale.setValue(0.0);
+
             for (auto& pi : p)
             {
-                pi = (pi + center) * Real(0.6667);
+                pi = (pi - center) * Real(1.0 - d_showElementGapScale.getValue()) + center;
             }
         }
 
         // create corresponding colors
-        if (drawVonMisesStress && showVonMisesStressPerElement)
-        {
-            if(heterogeneous)
+        if (drawVonMisesStress){
+            if (showVonMisesStressPerElement)
             {
-                float col = (float)((youngModulus[elementId] - this->minYoung) / (this->maxYoung - this->minYoung));
-                float fac = col * 0.5f;
-                color[0] = sofa::type::RGBAColor(col       , 0.0f - fac, 1.0f - col, 1.0f);
-                color[1] = sofa::type::RGBAColor(col       , 0.5f - fac, 1.0f - col, 1.0f);
-                color[2] = sofa::type::RGBAColor(col       , 1.0f - fac, 1.0f - col, 1.0f);
-                color[3] = sofa::type::RGBAColor(col + 0.5f, 1.0f - fac, 1.0f - col, 1.0f);
+                if(heterogeneous)
+                {
+                    float col = (float)((youngModulus[elementId] - this->minYoung) / (this->maxYoung - this->minYoung));
+                    float fac = col * 0.5f;
+                    color[0] = sofa::type::RGBAColor(col       , 0.0f - fac, 1.0f - col, 1.0f);
+                    color[1] = sofa::type::RGBAColor(col       , 0.5f - fac, 1.0f - col, 1.0f);
+                    color[2] = sofa::type::RGBAColor(col       , 1.0f - fac, 1.0f - col, 1.0f);
+                    color[3] = sofa::type::RGBAColor(col + 0.5f, 1.0f - fac, 1.0f - col, 1.0f);
+                }
+                else
+                {
+                    sofa::helper::ColorMap::evaluator<Real> evalColor = this->m_VonMisesColorMap->getEvaluator(minVM, maxVM);
+                    auto col = sofa::type::RGBAColor::fromVec4(evalColor(vM[elementId]));
+                    col[3] = 1.0f;
+                    color[0] = col;
+                    color[1] = col;
+                    color[2] = col;
+                    color[3] = col;
+                }
+            }
+            else if(d_showVonMisesStressPerNodeColorMap.getValue())
+            {
+                helper::ReadAccessor<Data<type::vector<Real> > > vMN =  _vonMisesPerNode;
+                helper::ColorMap::evaluator<Real> evalColor = m_VonMisesColorMap->getEvaluator(_minVMN, _maxVMN);
+                color[0] = evalColor(vMN[(*it)[0]]);
+                color[1] = evalColor(vMN[(*it)[1]]);
+                color[2] = evalColor(vMN[(*it)[2]]);
+                color[3] = evalColor(vMN[(*it)[3]]);
             }
             else
             {
-                sofa::helper::ColorMap::evaluator<Real> evalColor = this->m_VonMisesColorMap->getEvaluator(minVM, maxVM);
-                auto col = sofa::type::RGBAColor::fromVec4(evalColor(vM[elementId]));
-                col[3] = 1.0f;
-                color[0] = col;
-                color[1] = col;
-                color[2] = col;
-                color[3] = col;
+                color[0] = sofa::type::RGBAColor(0.0, 0.0, 1.0, 1.0);
+                color[1] = sofa::type::RGBAColor(0.0, 0.5, 1.0, 1.0);
+                color[2] = sofa::type::RGBAColor(0.0, 1.0, 1.0, 1.0);
+                color[3] = sofa::type::RGBAColor(0.5, 1.0, 1.0, 1.0);
             }
-        }
-        else if (!drawVonMisesStress)
-        {
-            color[0] = sofa::type::RGBAColor(0.0, 0.0, 1.0, 1.0);
-            color[1] = sofa::type::RGBAColor(0.0, 0.5, 1.0, 1.0);
-            color[2] = sofa::type::RGBAColor(0.0, 1.0, 1.0, 1.0);
-            color[3] = sofa::type::RGBAColor(0.5, 1.0, 1.0, 1.0);
         }
 
         *pointsIt++ = p[0];  *pointsIt++ = p[1];  *pointsIt++ = p[2];
@@ -1879,14 +1925,81 @@ void TetrahedronFEMForceField<DataTypes>::drawTrianglesFromRangeOfTetrahedra(
         *pointsIt++ = p[2];  *pointsIt++ = p[3];  *pointsIt++ = p[0];
         *pointsIt++ = p[3];  *pointsIt++ = p[0];  *pointsIt++ = p[1];
 
-        *colorsIt++ = color[0];  *colorsIt++ = color[0];  *colorsIt++ = color[0];
-        *colorsIt++ = color[1];  *colorsIt++ = color[1];  *colorsIt++ = color[1];
-        *colorsIt++ = color[2];  *colorsIt++ = color[2];  *colorsIt++ = color[2];
-        *colorsIt++ = color[3];  *colorsIt++ = color[3];  *colorsIt++ = color[3];
+        if(!d_showVonMisesStressPerNodeColorMap.getValue()){
+            *colorsIt++ = color[0];  *colorsIt++ = color[0];  *colorsIt++ = color[0];
+            *colorsIt++ = color[1];  *colorsIt++ = color[1];  *colorsIt++ = color[1];
+            *colorsIt++ = color[2];  *colorsIt++ = color[2];  *colorsIt++ = color[2];
+            *colorsIt++ = color[3];  *colorsIt++ = color[3];  *colorsIt++ = color[3];
+        }
+        else{
+            *colorsIt++ = color[0];  *colorsIt++ = color[1];  *colorsIt++ = color[2];
+            *colorsIt++ = color[1];  *colorsIt++ = color[2];  *colorsIt++ = color[3];
+            *colorsIt++ = color[2];  *colorsIt++ = color[3];  *colorsIt++ = color[0];
+            *colorsIt++ = color[3];  *colorsIt++ = color[0];  *colorsIt++ = color[1];
+        }
 
         ++elementId;
     }
 }
+
+template <class DataTypes>
+void TetrahedronFEMForceField<DataTypes>::drawSurfaceTrianglesVonStressColorMap(const core::visual::VisualParams* vparams, const VecCoord& x,
+                                                                                Real minVMN, Real maxVMN, helper::ReadAccessor<Data<type::vector<Real>>> vMN)
+{
+    m_renderedPoints.resize(m_surfaceTriangles.size() * 3);
+    m_renderedColors.resize(m_surfaceTriangles.size() * 3);
+
+    const auto showWireFrame = vparams->displayFlags().getShowWireFrame();
+
+    for(unsigned i = 0; i<m_surfaceTriangles.size(); i++){
+        sofa::type::fixed_array<sofa::type::RGBAColor, 4> color;
+        sofa::type::fixed_array<Coord, 3> p;
+
+        auto & tri = m_surfaceTriangles[i];
+
+        auto pointsIt = m_renderedPoints.begin() + i * 3;
+        auto colorsIt = m_renderedColors.begin() + i * 3;
+
+        p[0] = x[tri[0]];
+        p[1] = x[tri[1]];
+        p[2] = x[tri[2]];
+
+        if ( !showWireFrame && d_showElementGapScale.getValue() != 0.0 )
+        {
+            const Coord center = (p[0] + p[1] + p[2]) * 0.3333;
+
+            if(d_showElementGapScale.getValue() > 1.0) d_showElementGapScale.setValue(1.0);
+            if(d_showElementGapScale.getValue() < 0.0) d_showElementGapScale.setValue(0.0);
+
+            for (auto& pi : p)
+            {
+                pi = (pi - center) * Real(1.0 - d_showElementGapScale.getValue()) + center;
+            }
+        }
+
+//        helper::ReadAccessor<Data<type::vector<Real> > > vMN =  _vonMisesPerNode;
+        helper::ColorMap::evaluator<Real> evalColor = m_VonMisesColorMap->getEvaluator(minVMN, maxVMN);
+        color[0] = evalColor(vMN[tri[0]]);
+        color[1] = evalColor(vMN[tri[1]]);
+        color[2] = evalColor(vMN[tri[2]]);
+
+        *pointsIt++ = p[0];  *pointsIt++ = p[1];  *pointsIt++ = p[2];
+        *colorsIt++ = color[0];  *colorsIt++ = color[1];  *colorsIt++ = color[2];
+    }
+
+//    vparams->drawTool()->enableBlending();
+//    vparams->drawTool()->drawTriangles(m_renderedPoints, m_renderedColors);
+
+//    if(d_drawShift.getValue() != type::Vec3f(0.0,0.0,0.0)){ // copy and move
+        for(auto & p:m_renderedPoints){
+            p += d_drawShift.getValue();
+        }
+
+        vparams->drawTool()->enableBlending();
+        vparams->drawTool()->drawTriangles(m_renderedPoints, m_renderedColors);
+//    }
+}
+
 
 template<class DataTypes>
 void TetrahedronFEMForceField<DataTypes>::draw(const core::visual::VisualParams* vparams)
@@ -1905,7 +2018,7 @@ void TetrahedronFEMForceField<DataTypes>::draw(const core::visual::VisualParams*
 
     const bool showVonMisesStressPerElement = _showVonMisesStressPerElement.getValue();
 
-    const bool drawVonMisesStress = (_showVonMisesStressPerNode.getValue() || showVonMisesStressPerElement) && isComputeVonMisesStressMethodSet();
+    const bool drawVonMisesStress = (_showVonMisesStressPerNode.getValue() || showVonMisesStressPerElement || d_showVonMisesStressPerNodeColorMap.getValue()) && isComputeVonMisesStressMethodSet();
 
     const auto stateLifeCycle = vparams->drawTool()->makeStateLifeCycle();
 
@@ -1955,8 +2068,10 @@ void TetrahedronFEMForceField<DataTypes>::draw(const core::visual::VisualParams*
         maxVM *= _showStressAlpha.getValue();
         maxVMN *= _showStressAlpha.getValue();
 
+        _minVMN = minVMN;
+        _maxVMN = maxVMN;
 
-        if (_showVonMisesStressPerNode.getValue())
+        if (_showVonMisesStressPerNode.getValue() )
         {
             // Draw nodes (if node option enabled)
             std::vector<sofa::type::RGBAColor> nodeColors(x.size());
@@ -1972,7 +2087,8 @@ void TetrahedronFEMForceField<DataTypes>::draw(const core::visual::VisualParams*
 
 
     // Draw elements (if not "node only")
-    drawTrianglesFromTetrahedra(vparams, showVonMisesStressPerElement, drawVonMisesStress, x,
+    if(d_showVonMisesStressPerNodeColorMap.getValue()) drawSurfaceTrianglesVonStressColorMap(vparams, x, minVMN, maxVMN, vMN);
+    else drawTrianglesFromTetrahedra(vparams, showVonMisesStressPerElement, drawVonMisesStress, x,
                                 youngModulus, heterogeneous, minVM, maxVM, vM);
 
 
@@ -2022,6 +2138,7 @@ void TetrahedronFEMForceField<DataTypes>::addKToMatrix(const core::MechanicalPar
     else dmsg_error() << "The function addKToMatrix found no valid matrix accessor." ;
 }
 
+
 template<class DataTypes>
 void TetrahedronFEMForceField<DataTypes>::addKToMatrix(sofa::linearalgebra::BaseMatrix *mat, SReal k, unsigned int &offset)
 {
@@ -2061,53 +2178,6 @@ void TetrahedronFEMForceField<DataTypes>::addKToMatrix(sofa::linearalgebra::Base
             for (sofa::Index n2=0; n2 < N; n2++)
             {
                 mat->add(offset + (*it)[n1] * S, offset + (*it)[n2] * S, tmpBlock[n1][n2]);
-            }
-        }
-    }
-}
-
-template <class DataTypes>
-void TetrahedronFEMForceField<DataTypes>::buildStiffnessMatrix(core::behavior::StiffnessMatrix* matrix)
-{
-    int IT = 0;
-    StiffnessMatrix JKJt,tmp;
-
-    Transformation Rot;
-    Rot.identity(); //set the transformation to identity
-
-    constexpr auto S = DataTypes::deriv_total_size; // size of node blocks
-    constexpr auto N = Element::size();
-
-    auto dfdx = matrix->getForceDerivativeIn(this->mstate)
-                       .withRespectToPositionsIn(this->mstate);
-
-    for(auto it = _indexedElements->begin() ; it != _indexedElements->end() ; ++it,++IT)
-    {
-        if (method == SMALL)
-            computeStiffnessMatrix(JKJt,tmp,materialsStiffnesses[IT], strainDisplacements[IT],Rot);
-        else
-            computeStiffnessMatrix(JKJt,tmp,materialsStiffnesses[IT], strainDisplacements[IT],rotations[IT]);
-
-        type::Mat<S, S, double> tmpBlock[4][4];
-        for (sofa::Index n1=0; n1 < N; n1++)
-        {
-            for(sofa::Index i=0; i < S; i++)
-            {
-                for (sofa::Index n2=0; n2 < N; n2++)
-                {
-                    for (sofa::Index j=0; j < S; j++)
-                    {
-                        tmpBlock[n1][n2][i][j] = - tmp[n1*S+i][n2*S+j];
-                    }
-                }
-            }
-        }
-
-        for (sofa::Index n1=0; n1 < N; n1++)
-        {
-            for (sofa::Index n2=0; n2 < N; n2++)
-            {
-                dfdx((*it)[n1] * S, (*it)[n2] * S) += tmpBlock[n1][n2];
             }
         }
     }
@@ -2232,18 +2302,18 @@ const typename TetrahedronFEMForceField<DataTypes>::Transformation& TetrahedronF
         return rotations[index];
 
     msg_warning() << "Method getActualTetraRotation called with element index: " << index
-        << " which is out of bounds: [0, " << rotations.size() << "]. Returning default empty array of coordinates.";
+                  << " which is out of bounds: [0, " << rotations.size() << "]. Returning default empty array of coordinates.";
     return InvalidTransform;
 }
 
 template<class DataTypes>
 const typename TetrahedronFEMForceField<DataTypes>::Transformation& TetrahedronFEMForceField<DataTypes>::getInitialTetraRotation(unsigned int index)
-{ 
+{
     if (index < _initialRotations.size())
         return _initialRotations[index];
 
     msg_warning() << "Method getInitialTetraRotation called with element index: " << index
-        << " which is out of bounds: [0, " << _initialRotations.size() << "]. Returning default empty array of coordinates.";
+                  << " which is out of bounds: [0, " << _initialRotations.size() << "]. Returning default empty array of coordinates.";
     return InvalidTransform;
 }
 
@@ -2254,7 +2324,7 @@ const typename TetrahedronFEMForceField<DataTypes>::MaterialStiffness& Tetrahedr
         return materialsStiffnesses[tetraId];
 
     msg_warning() << "Method getMaterialStiffness called with element index: " << tetraId
-        << " which is out of bounds: [0, " << materialsStiffnesses.size() << "]. Returning default empty array of coordinates.";
+                  << " which is out of bounds: [0, " << materialsStiffnesses.size() << "]. Returning default empty array of coordinates.";
     return InvalidMaterialStiffness;
 }
 
@@ -2265,7 +2335,7 @@ const typename TetrahedronFEMForceField<DataTypes>::StrainDisplacement& Tetrahed
         return strainDisplacements[tetraId];
 
     msg_warning() << "Method getStrainDisplacement called with element index: " << tetraId
-        << " which is out of bounds: [0, " << strainDisplacements.size() << "]. Returning default empty array of coordinates.";
+                  << " which is out of bounds: [0, " << strainDisplacements.size() << "]. Returning default empty array of coordinates.";
     return InvalidStrainDisplacement;
 }
 
@@ -2277,7 +2347,7 @@ const type::fixed_array<typename TetrahedronFEMForceField<DataTypes>::Coord, 4>&
         return _rotatedInitialElements[tetraId];
 
     msg_warning() << "Method getRotatedInitialElements called with element index: " << tetraId
-        << " which is out of bounds: [0, " << _rotatedInitialElements.size() << "]. Returning default empty array of coordinates.";
+                  << " which is out of bounds: [0, " << _rotatedInitialElements.size() << "]. Returning default empty array of coordinates.";
     return InvalidCoords;
 }
 
@@ -2302,10 +2372,10 @@ void TetrahedronFEMForceField<DataTypes>::setMethod(int val)
     method = val;
     switch(val)
     {
-    case SMALL: f_method.setValue("small"); break;
-    case POLAR: f_method.setValue("polar"); break;
-    case SVD:   f_method.setValue("svd"); break;
-    default   : f_method.setValue("large");
+        case SMALL: f_method.setValue("small"); break;
+        case POLAR: f_method.setValue("polar"); break;
+        case SVD:   f_method.setValue("svd"); break;
+        default   : f_method.setValue("large");
     }
 }
 
